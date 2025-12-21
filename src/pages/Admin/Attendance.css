@@ -1,0 +1,142 @@
+/* Attendance.css */
+
+/* Container styling */
+.attendance-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 25px;
+  background-color: #f5f6fa;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Main heading */
+.attendance-container h1 {
+  text-align: center;
+  color: #1e1e2f;
+  margin-bottom: 30px;
+}
+
+/* Header with employee select */
+.attendance-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.attendance-header label {
+  font-weight: 600;
+  color: #333;
+}
+
+.attendance-header select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  outline: none;
+  transition: 0.3s;
+}
+
+.attendance-header select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 6px rgba(79, 70, 229, 0.3);
+}
+
+/* Table styling */
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
+}
+
+.attendance-table th,
+.attendance-table td {
+  padding: 14px 20px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.attendance-table thead {
+  background-color: #4f46e5;
+  color: #fff;
+}
+
+.attendance-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.3s;
+}
+
+.attendance-table tbody tr:hover {
+  background-color: #f0f0ff;
+}
+
+.attendance-table td:first-child,
+.attendance-table th:first-child {
+  text-align: center;
+}
+
+/* Summary box */
+.attendance-summary {
+  margin-top: 25px;
+  padding: 20px;
+  background-color: #eef2ff;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.attendance-summary h3 {
+  margin-bottom: 15px;
+  color: #4f46e5;
+}
+
+.attendance-summary p {
+  margin: 5px 0;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Status badges (optional) */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.status-Present {
+  background-color: #10b981; /* green */
+}
+
+.status-Absent {
+  background-color: #ef4444; /* red */
+}
+
+.status-Leave {
+  background-color: #f59e0b; /* orange */
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .attendance-container {
+    padding: 15px;
+  }
+
+  .attendance-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: 10px;
+  }
+}

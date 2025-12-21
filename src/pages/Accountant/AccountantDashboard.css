@@ -1,0 +1,95 @@
+.accountant-dashboard {
+  padding: 2rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.8rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* Professional 3-Column Grid [cite: 208, 213] */
+.accountant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.acc-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.acc-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.acc-card-inner {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.acc-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.acc-stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0.5rem 0;
+}
+
+.acc-stat-subtext {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.acc-icon-wrap {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.acc-accent-line {
+  height: 4px;
+  width: 100%;
+  margin-top: auto;
+}
+
+/* Tablet responsiveness */
+@media (max-width: 1100px) {
+  .accountant-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Mobile responsiveness [cite: 214] */
+@media (max-width: 700px) {
+  .accountant-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,102 @@
+/* Full page container, centered content */
+.report-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center; /* center horizontally */
+  align-items: center;     /* center vertically */
+  padding: 30px;
+  background: #f5f9ff;
+  box-sizing: border-box;
+  gap: 40px;
+  flex-wrap: nowrap; /* prevent wrapping to avoid motion */
+}
+
+/* Left column: header + summary cards */
+.report-left {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  flex: 0 0 500px; /* fixed width */
+}
+
+/* Right column: chart */
+.report-right {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  flex: 0 0 500px; /* fixed width */
+}
+
+/* HEADER */
+.report-header h1 {
+  color: #1976d2;
+  margin-bottom: 5px;
+  text-align: center;
+}
+
+.report-header p {
+  color: #555;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* SUMMARY CARDS */
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* fixed 2 columns */
+  gap: 20px;
+}
+
+.summary-card {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px; /* space between icon, title, value */
+}
+
+.summary-card .icon {
+  font-size: 28px;
+  color: #1976d2;
+}
+
+.summary-card h3 {
+  color: #1976d2;
+  margin-bottom: 5px;
+}
+
+.summary-card p {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* CHART SECTION */
+.chart-section {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
+
+.chart-section h2 {
+  color: #1976d2;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.chart-section canvas {
+  max-height: 180px; /* smaller fixed height */
+  width: 100% !important; /* full width of column */
+}
