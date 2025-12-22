@@ -13,9 +13,16 @@ public class BankController {
     @Autowired
     private BankService bankService;
 
+    // Single bank
     @PostMapping
     public Bank createBank(@RequestBody Bank bank) {
         return bankService.saveBank(bank);
+    }
+
+    // Bulk banks
+    @PostMapping("/bulk")
+    public List<Bank> createBanks(@RequestBody List<Bank> banks) {
+        return bankService.saveAllBanks(banks);
     }
 
     @PutMapping("/{id}")

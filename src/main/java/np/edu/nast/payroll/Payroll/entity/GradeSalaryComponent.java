@@ -5,19 +5,25 @@ import lombok.*;
 
 @Entity
 @Table(name = "grade_salary_component")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GradeSalaryComponent {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer gscId;
+    private Long gscId;
 
-    @ManyToOne
-    @JoinColumn(name = "grade_id")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "grade_id", nullable = false)
     private SalaryGrade grade;
 
-    @ManyToOne
-    @JoinColumn(name = "component_id")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "component_id", nullable = false)
     private SalaryComponent component;
 
+    @Column(nullable = false)
     private Double value;
 }

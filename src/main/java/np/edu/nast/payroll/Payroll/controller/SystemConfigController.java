@@ -15,7 +15,7 @@ public class SystemConfigController {
     private SystemConfigService service;
 
     @PostMapping
-    public SystemConfig createConfig(@RequestBody SystemConfig config) {
+    public SystemConfig createOrUpdateConfig(@RequestBody SystemConfig config) {
         return service.saveConfig(config);
     }
 
@@ -27,6 +27,11 @@ public class SystemConfigController {
     @GetMapping("/{id}")
     public SystemConfig getConfig(@PathVariable Integer id) {
         return service.getConfigById(id);
+    }
+
+    @GetMapping("/key/{keyName}")
+    public SystemConfig getConfigByKey(@PathVariable String keyName) {
+        return service.getConfigByKey(keyName);
     }
 
     @DeleteMapping("/{id}")

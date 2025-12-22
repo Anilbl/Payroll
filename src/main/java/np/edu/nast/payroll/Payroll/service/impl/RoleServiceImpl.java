@@ -1,48 +1,60 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
 import np.edu.nast.payroll.Payroll.entity.Role;
+import np.edu.nast.payroll.Payroll.repository.RoleRepository;
 import np.edu.nast.payroll.Payroll.service.RoleService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
+
+import jakarta.annotation.PostConstruct;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RoleServiceImpl implements RoleService {
 
-    private final List<Role> roleList = new ArrayList<>();
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Override
     public Role saveRole(Role role) {
-        roleList.add(role);
-        return role;
+        return roleRepository.save(role); // Returns managed entity with ID
     }
 
     @Override
     public Role updateRole(Role role) {
-        for (int i = 0; i < roleList.size(); i++) {
-            if (roleList.get(i).getRoleId().equals(role.getRoleId())) {
-                roleList.set(i, role);
-                return role;
-            }
+        if (roleRepository.existsById(role.getRoleId())) {
+            return roleRepository.save(role);
         }
         return null;
     }
 
     @Override
     public void deleteRole(Integer roleId) {
-        roleList.removeIf(role -> role.getRoleId().equals(roleId));
+        roleRepository.deleteById(roleId);
     }
 
     @Override
     public Role getRoleById(Integer roleId) {
-        return roleList.stream()
-                .filter(role -> role.getRoleId().equals(roleId))
-                .findFirst()
-                .orElse(null);
+        Optional<Role> role = roleRepository.findById(roleId);
+        return role.orElse(null);
     }
 
     @Override
     public List<Role> getAllRoles() {
-        return roleList;
+        return roleRepository.findAll();
+    }
+
+    // ✅ Seed default roles at startup
+    @PostConstruct
+    public void seedDefaultRoles() {
+        String[] defaults = {"Admin", "HR", "Accountant", "Employee"};
+        for (String roleName : defaults) {
+            if (!roleRepository.existsByRoleName(roleName)) {
+                Role role = new Role();
+                role.setRoleName(roleName);
+                roleRepository.save(role);
+            }
+        }
     }
 }

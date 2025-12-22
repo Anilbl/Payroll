@@ -6,23 +6,45 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bank_account")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class BankAccount {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer accountId;
 
-    @ManyToOne
-    @JoinColumn(name = "emp_id")
+    // Employee must exist before bank account creation
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "emp_id", nullable = false)
     private Employee employee;
 
-    @ManyToOne
-    @JoinColumn(name = "bank_id")
+    // Bank must exist before bank account creation
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "bank_id", nullable = false)
     private Bank bank;
 
+    @Column(nullable = false, unique = true)
     private String accountNumber;
-    private String accountType; // Savings/Current/Salary
+
+    @Column(nullable = false)
+    private String accountType; // Savings / Current / Salary
+
+    @Column(nullable = false)
     private Boolean isPrimary;
+
+    @Column(nullable = false)
     private String currency;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    // Automatically set createdAt before insert
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

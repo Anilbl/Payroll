@@ -22,28 +22,30 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public Attendance updateAttendance(Long id, Attendance attendance) {
-        Attendance existing = attendanceRepository.findById(Math.toIntExact(id))
-                .orElseThrow(() -> new RuntimeException("Attendance not found"));
+    public Attendance updateAttendance(Long id, Attendance updated) {
 
-        existing.setCheckInTime(attendance.getCheckInTime());
-        existing.setCheckOutTime(attendance.getCheckOutTime());
-        existing.setAttendanceDate(attendance.getAttendanceDate());
-        existing.setInGpsLat(attendance.getInGpsLat());
-        existing.setInGpsLong(attendance.getInGpsLong());
+        Attendance existing = attendanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Attendance not found with ID: " + id));
+
+        existing.setCheckInTime(updated.getCheckInTime());
+        existing.setCheckOutTime(updated.getCheckOutTime());
+        existing.setAttendanceDate(updated.getAttendanceDate());
+        existing.setInGpsLat(updated.getInGpsLat());
+        existing.setInGpsLong(updated.getInGpsLong());
+        existing.setEmployee(updated.getEmployee());
 
         return attendanceRepository.save(existing);
     }
 
     @Override
     public void deleteAttendance(Long id) {
-        attendanceRepository.deleteById(Math.toIntExact(id));
+        attendanceRepository.deleteById(id);
     }
 
     @Override
     public Attendance getAttendanceById(Long id) {
-        return attendanceRepository.findById(Math.toIntExact(id))
-                .orElseThrow(() -> new RuntimeException("Attendance not found"));
+        return attendanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Attendance not found with ID: " + id));
     }
 
     @Override
