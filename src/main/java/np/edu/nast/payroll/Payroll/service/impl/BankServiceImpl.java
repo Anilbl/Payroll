@@ -1,48 +1,45 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
 import np.edu.nast.payroll.Payroll.entity.Bank;
+import np.edu.nast.payroll.Payroll.repository.BankRepository;
 import np.edu.nast.payroll.Payroll.service.BankService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class BankServiceImpl implements BankService {
 
-    private final List<Bank> bankList = new ArrayList<>();
+    @Autowired
+    private BankRepository bankRepository;
 
     @Override
     public Bank saveBank(Bank bank) {
-        bankList.add(bank);
-        return bank;
+        return bankRepository.save(bank);
+    }
+
+    @Override
+    public List<Bank> saveAllBanks(List<Bank> banks) {
+        return bankRepository.saveAll(banks);
     }
 
     @Override
     public Bank updateBank(Bank bank) {
-        for (int i = 0; i < bankList.size(); i++) {
-            if (bankList.get(i).getBankId().equals(bank.getBankId())) {
-                bankList.set(i, bank);
-                return bank;
-            }
-        }
-        return null;
+        return bankRepository.save(bank);
     }
 
     @Override
     public void deleteBank(Integer bankId) {
-        bankList.removeIf(bank -> bank.getBankId().equals(bankId));
+        bankRepository.deleteById(bankId);
     }
 
     @Override
     public Bank getBankById(Integer bankId) {
-        return bankList.stream()
-                .filter(bank -> bank.getBankId().equals(bankId))
-                .findFirst()
-                .orElse(null);
+        return bankRepository.findById(bankId).orElse(null);
     }
 
     @Override
     public List<Bank> getAllBanks() {
-        return bankList;
+        return bankRepository.findAll();
     }
 }

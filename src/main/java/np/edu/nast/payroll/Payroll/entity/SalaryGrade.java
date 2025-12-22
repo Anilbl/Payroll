@@ -9,8 +9,7 @@ import lombok.*;
 public class SalaryGrade {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer gradeId;
-
+    private Long gradeId;
     private String gradeName;
     private String description;
 }

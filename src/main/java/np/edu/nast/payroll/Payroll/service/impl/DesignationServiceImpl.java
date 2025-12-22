@@ -1,48 +1,43 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
 import np.edu.nast.payroll.Payroll.entity.Designation;
+import np.edu.nast.payroll.Payroll.repository.DesignationRepository;
 import np.edu.nast.payroll.Payroll.service.DesignationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
+
 import java.util.List;
 
 @Service
 public class DesignationServiceImpl implements DesignationService {
 
-    private final List<Designation> designationList = new ArrayList<>();
+    @Autowired
+    private DesignationRepository designationRepository;
 
     @Override
     public Designation saveDesignation(Designation designation) {
-        designationList.add(designation);
-        return designation;
+        // Save to database, ID will be auto-generated
+        return designationRepository.save(designation);
     }
 
     @Override
     public Designation updateDesignation(Designation designation) {
-        for (int i = 0; i < designationList.size(); i++) {
-            if (designationList.get(i).getDesignationId().equals(designation.getDesignationId())) {
-                designationList.set(i, designation);
-                return designation;
-            }
-        }
-        return null;
+        // Save also works for update if ID exists
+        return designationRepository.save(designation);
     }
 
     @Override
     public void deleteDesignation(Integer designationId) {
-        designationList.removeIf(designation -> designation.getDesignationId().equals(designationId));
+        designationRepository.deleteById(designationId);
     }
 
     @Override
     public Designation getDesignationById(Integer designationId) {
-        return designationList.stream()
-                .filter(designation -> designation.getDesignationId().equals(designationId))
-                .findFirst()
-                .orElse(null);
+        return designationRepository.findById(designationId).orElse(null);
     }
 
     @Override
     public List<Designation> getAllDesignations() {
-        return designationList;
+        return designationRepository.findAll();
     }
 }

@@ -7,6 +7,8 @@ public interface BankService {
 
     Bank saveBank(Bank bank);
 
+    List<Bank> saveAllBanks(List<Bank> banks);
+
     Bank updateBank(Bank bank);
 
     void deleteBank(Integer bankId);

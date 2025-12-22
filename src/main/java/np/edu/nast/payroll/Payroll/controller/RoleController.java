@@ -19,18 +19,18 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
-    public Role updateRole(@PathVariable("id") Integer id, @RequestBody Role role) {
+    public Role updateRole(@PathVariable Integer id, @RequestBody Role role) {
         role.setRoleId(id);
         return roleService.updateRole(role);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteRole(@PathVariable("id") Integer id) {
+    public void deleteRole(@PathVariable Integer id) {
         roleService.deleteRole(id);
     }
 
     @GetMapping("/{id}")
-    public Role getRoleById(@PathVariable("id") Integer id) {
+    public Role getRoleById(@PathVariable Integer id) {
         return roleService.getRoleById(id);
     }
 

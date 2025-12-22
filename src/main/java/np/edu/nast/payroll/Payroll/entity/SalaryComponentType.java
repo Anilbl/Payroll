@@ -9,7 +9,7 @@ import lombok.*;
 public class SalaryComponentType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer componentTypeId;
+    private Long componentTypeId;
 
     private String name;
     private String description;

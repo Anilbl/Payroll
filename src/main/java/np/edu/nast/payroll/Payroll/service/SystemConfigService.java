@@ -1,6 +1,7 @@
 package np.edu.nast.payroll.Payroll.service;
 
 import np.edu.nast.payroll.Payroll.entity.SystemConfig;
+
 import java.util.List;
 
 public interface SystemConfigService {
@@ -8,4 +9,5 @@ public interface SystemConfigService {
     List<SystemConfig> getAllConfigs();
     SystemConfig getConfigById(Integer id);
     void deleteConfig(Integer id);
+    SystemConfig getConfigByKey(String keyName); // fetch by key
 }

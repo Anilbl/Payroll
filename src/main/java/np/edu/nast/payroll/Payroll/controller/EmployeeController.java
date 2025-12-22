@@ -19,7 +19,9 @@ public class EmployeeController {
     public Employee create(@RequestBody Employee employee) { return svc.create(employee); }
 
     @GetMapping
-    public List<Employee> getAll() { return svc.getAll(); }
+    public List<Employee> getAll() { return svc.getAll();
+
+    }
 
     @GetMapping("/{id}")
     public Employee getById(@PathVariable Integer id) { return svc.getById(id); }

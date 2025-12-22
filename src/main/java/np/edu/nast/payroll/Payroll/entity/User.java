@@ -6,8 +6,13 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer userId;
@@ -27,4 +32,8 @@ public class User {
     private String status;
 
     private LocalDateTime createdAt;
+
+    // 🔥 FIX: Optimistic Locking to avoid stale update error
+    @Version
+    private Integer version;
 }

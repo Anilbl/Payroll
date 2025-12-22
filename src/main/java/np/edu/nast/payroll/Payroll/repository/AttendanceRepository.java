@@ -1,11 +1,11 @@
 package np.edu.nast.payroll.Payroll.repository;
+
 import np.edu.nast.payroll.Payroll.entity.Attendance;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface AttendanceRepository extends JpaRepository<Attendance, Integer> {
-
+public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     List<Attendance> findByEmployeeEmpId(Long empId);
 }
