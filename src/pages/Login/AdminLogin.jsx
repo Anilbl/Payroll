@@ -13,10 +13,11 @@ export default function AdminLogin({ setUser }) {
 
     try {
       // Trim inputs to avoid trailing/leading space issues
-      const payload = {
-        usernameOrEmail: email.trim(),
-        password: password.trim(),
-      };
+    const payload = {
+  usernameOrEmail: email.trim(),
+  password: password.trim(),
+  role: "ADMIN"
+};
 
       console.log("Login payload:", payload);
 
