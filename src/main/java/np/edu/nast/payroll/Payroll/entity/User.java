@@ -2,6 +2,7 @@ package np.edu.nast.payroll.Payroll.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,7 +27,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "emp_id", nullable = false, unique = true)
     private Employee employee;
 

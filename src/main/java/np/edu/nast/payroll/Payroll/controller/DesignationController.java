@@ -5,7 +5,7 @@ import np.edu.nast.payroll.Payroll.service.DesignationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/designations")
 public class DesignationController {

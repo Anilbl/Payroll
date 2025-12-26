@@ -2,6 +2,7 @@ package np.edu.nast.payroll.Payroll.service;
 
 import np.edu.nast.payroll.Payroll.entity.Employee;
 import java.util.List;
+import java.util.Map;
 
 public interface EmployeeService {
     Employee create(Employee employee);
@@ -9,4 +10,7 @@ public interface EmployeeService {
     void delete(Integer id);
     Employee getById(Integer id);
     List<Employee> getAll();
+
+    // New method for stats
+    Map<Integer, Long> getActiveEmployeeStats();
 }
