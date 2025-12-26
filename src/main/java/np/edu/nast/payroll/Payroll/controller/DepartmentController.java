@@ -4,7 +4,7 @@ import np.edu.nast.payroll.Payroll.service.DepartmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/departments")
 public class DepartmentController {
