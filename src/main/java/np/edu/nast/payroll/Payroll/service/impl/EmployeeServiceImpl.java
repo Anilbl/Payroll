@@ -53,6 +53,11 @@ public class EmployeeServiceImpl implements EmployeeService {
                         "Designation not found with id: " + employee.getPosition().getDesignationId()
                 ));
 
+        // EMAIL UNIQUENESS CHECK
+        if (employeeRepo.findByEmail(employee.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists for another employee");
+        }
+
         employee.setDepartment(department);
         employee.setPosition(designation);
 
@@ -85,7 +90,20 @@ public class EmployeeServiceImpl implements EmployeeService {
                         "Designation not found with id: " + employee.getPosition().getDesignationId()
                 ));
 
-        // UPDATE VALUES
+        // EMAIL UNIQUENESS CHECK ON UPDATE
+        if (employee.getEmail() != null && !employee.getEmail().equals(existing.getEmail())) {
+            if (employeeRepo.findByEmail(employee.getEmail()).isPresent()) {
+                throw new IllegalArgumentException("Email already exists for another employee");
+            }
+            existing.setEmail(employee.getEmail());
+
+            // Sync User email if exists
+            if (existing.getUser() != null) {
+                existing.getUser().setEmail(employee.getEmail());
+            }
+        }
+
+        // UPDATE OTHER VALUES
         existing.setDepartment(department);
         existing.setPosition(designation);
         existing.setFirstName(employee.getFirstName());
@@ -97,16 +115,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         existing.setJoiningDate(employee.getJoiningDate());
         existing.setAddress(employee.getAddress());
         existing.setIsActive(employee.getIsActive());
-
-        // EMAIL = SOURCE OF TRUTH
-        if (employee.getEmail() != null && !employee.getEmail().equals(existing.getEmail())) {
-            existing.setEmail(employee.getEmail());
-
-            // Sync user email via entity relationship (no repository call)
-            if (existing.getUser() != null) {
-                existing.getUser().setEmail(employee.getEmail());
-            }
-        }
 
         return employeeRepo.save(existing);
     }

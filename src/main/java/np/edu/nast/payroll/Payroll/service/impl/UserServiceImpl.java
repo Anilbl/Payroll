@@ -3,6 +3,8 @@ package np.edu.nast.payroll.Payroll.service.impl;
 import np.edu.nast.payroll.Payroll.entity.Employee;
 import np.edu.nast.payroll.Payroll.entity.Role;
 import np.edu.nast.payroll.Payroll.entity.User;
+import np.edu.nast.payroll.Payroll.exception.ResourceNotFoundException;
+import np.edu.nast.payroll.Payroll.exception.DuplicateResourceException;
 import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
 import np.edu.nast.payroll.Payroll.repository.RoleRepository;
 import np.edu.nast.payroll.Payroll.repository.UserRepository;
@@ -31,58 +33,71 @@ public class UserServiceImpl implements UserService {
         this.employeeRepo = employeeRepo;
     }
 
-    /**
-     * CREATE USER
-     * RULES:
-     * - Employee MUST exist
-     * - Employee must NOT already have a user
-     * - Email is copied from employee
-     */
+    /* =========================
+       CREATE USER
+       ========================= */
     @Override
     public User create(User user) {
 
         if (user.getEmployee() == null || user.getEmployee().getEmpId() == null) {
-            throw new RuntimeException("Employee ID is required");
+            throw new IllegalArgumentException("Employee ID is required");
+        }
+
+        if (user.getRole() == null || user.getRole().getRoleId() == null) {
+            throw new IllegalArgumentException("Role ID is required");
         }
 
         Employee employee = employeeRepo.findById(user.getEmployee().getEmpId())
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Employee not found with ID: " +
+                                user.getEmployee().getEmpId())
+                );
 
+        // ONE EMPLOYEE → ONE USER (SERVICE-LEVEL ENFORCEMENT)
         if (employee.getUser() != null) {
-            throw new RuntimeException("User already exists for this employee");
+            throw new DuplicateResourceException(
+                    "User already exists for employee ID: " + employee.getEmpId()
+            );
         }
 
         Role role = roleRepo.findById(user.getRole().getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Role not found with ID: " +
+                                user.getRole().getRoleId())
+                );
 
         user.setEmployee(employee);
-        user.setEmail(employee.getEmail());
+        user.setEmail(employee.getEmail()); // email source of truth
         user.setRole(role);
         user.setStatus(user.getStatus() != null ? user.getStatus() : "ACTIVE");
         user.setCreatedAt(LocalDateTime.now());
 
-        employee.setUser(user); // 🔑 link both sides
+        // Bidirectional link
+        employee.setUser(user);
 
         return userRepo.save(user);
     }
 
-    /**
-     * UPDATE USER
-     * - Username / password / role / status only
-     * - Email comes ONLY from employee
-     */
+    /* =========================
+       UPDATE USER
+       ========================= */
     @Override
     public User update(Integer id, User user) {
 
         User existing = userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found with ID: " + id)
+                );
 
         existing.setUsername(user.getUsername());
         existing.setPassword(user.getPassword());
 
         if (user.getRole() != null && user.getRole().getRoleId() != null) {
             Role role = roleRepo.findById(user.getRole().getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role not found"));
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("Role not found with ID: " +
+                                    user.getRole().getRoleId())
+                    );
             existing.setRole(role);
         }
 
@@ -93,23 +108,34 @@ public class UserServiceImpl implements UserService {
         return userRepo.save(existing);
     }
 
-    /**
-     * DELETE USER ONLY
-     * - Employee remains
-     */
+    /* =========================
+       DELETE USER
+       ========================= */
     @Override
     public void delete(Integer id) {
-        User user = userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        user.getEmployee().setUser(null);
+        User user = userRepo.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found with ID: " + id)
+                );
+
+        // break relationship safely
+        if (user.getEmployee() != null) {
+            user.getEmployee().setUser(null);
+        }
+
         userRepo.delete(user);
     }
 
+    /* =========================
+       READ OPERATIONS
+       ========================= */
     @Override
     public User getById(Integer id) {
         return userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found with ID: " + id)
+                );
     }
 
     @Override
