@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.repository;
 
+import np.edu.nast.payroll.Payroll.entity.Employee;
 import np.edu.nast.payroll.Payroll.entity.EmployeeLeave;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,4 +12,6 @@ public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, In
 
     // ADD THIS NEW LINE TO RESOLVE THE ERROR
     long countByStatus(String status);
+
+    List<EmployeeLeave> findAllByEmployee(Employee employee);
 }

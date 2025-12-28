@@ -2,9 +2,11 @@ package np.edu.nast.payroll.Payroll.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 @Entity
 @Table(name = "leave_balance")
+@CrossOrigin(origins = "http://localhost:5173")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LeaveBalance {
     @Id

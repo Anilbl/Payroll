@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -39,15 +40,13 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
         leave.setStatus(status);
 
         if ("Approved".equalsIgnoreCase(status)) {
-            // Validate and fetch the admin user who is performing the approval
             User admin = userRepo.findById(adminId)
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Admin User not found with ID: " + adminId));
 
-            leave.setApprovedBy(admin); // Updates the approved_by_user_id column
-            leave.setApprovedAt(LocalDateTime.now()); // Updates the approved_at column
+            leave.setApprovedBy(admin);
+            leave.setApprovedAt(LocalDateTime.now());
         } else {
-            // If rejected or pending, clear approval data
             leave.setApprovedBy(null);
             leave.setApprovedAt(null);
         }
@@ -59,7 +58,7 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
     @Transactional
     public EmployeeLeave requestLeave(EmployeeLeave leave) {
 
-        // Validate Employee
+        // Validate and Fetch Employee
         if (leave.getEmployee() == null || leave.getEmployee().getEmpId() == null) {
             throw new IllegalArgumentException("Employee ID is required");
         }
@@ -68,7 +67,7 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
                         "Employee not found with ID: " + leave.getEmployee().getEmpId()));
         leave.setEmployee(employee);
 
-        // Validate LeaveType
+        // Validate and Fetch LeaveType
         if (leave.getLeaveType() == null || leave.getLeaveType().getLeaveTypeId() == null) {
             throw new IllegalArgumentException("Leave Type ID is required");
         }
@@ -77,7 +76,19 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
                         "Leave Type not found with ID: " + leave.getLeaveType().getLeaveTypeId()));
         leave.setLeaveType(leaveType);
 
-        // Validate ApprovedBy user if provided
+        // --- NEW CALCULATION LOGIC ---
+        // Ensure totalDays is calculated before saving
+        if (leave.getStartDate() != null && leave.getEndDate() != null) {
+            long days = ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1;
+            leave.setTotalDays((int) days);
+        }
+
+        // Set default status if empty
+        if (leave.getStatus() == null || leave.getStatus().isEmpty()) {
+            leave.setStatus("Pending");
+        }
+
+        // Validate ApprovedBy user if provided (usually null on initial request)
         if (leave.getApprovedBy() != null && leave.getApprovedBy().getUserId() != null) {
             User approvedBy = userRepo.findById(leave.getApprovedBy().getUserId())
                     .orElseThrow(() -> new IllegalArgumentException(
@@ -114,40 +125,30 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
         EmployeeLeave existingLeave = employeeLeaveRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Leave not found with ID: " + id));
 
-        // Validate Employee
-        if (leave.getEmployee() == null || leave.getEmployee().getEmpId() == null) {
-            throw new IllegalArgumentException("Employee ID is required");
+        // Re-calculate days if dates changed
+        if (leave.getStartDate() != null && leave.getEndDate() != null) {
+            long days = ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1;
+            existingLeave.setTotalDays((int) days);
         }
-        Employee employee = employeeRepo.findById(leave.getEmployee().getEmpId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Employee not found with ID: " + leave.getEmployee().getEmpId()));
-        existingLeave.setEmployee(employee);
 
-        // Validate LeaveType
-        if (leave.getLeaveType() == null || leave.getLeaveType().getLeaveTypeId() == null) {
-            throw new IllegalArgumentException("Leave Type ID is required");
+        // Validate and update Employee
+        if (leave.getEmployee() != null && leave.getEmployee().getEmpId() != null) {
+            Employee employee = employeeRepo.findById(leave.getEmployee().getEmpId())
+                    .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+            existingLeave.setEmployee(employee);
         }
-        LeaveType leaveType = leaveTypeRepo.findById(leave.getLeaveType().getLeaveTypeId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Leave Type not found with ID: " + leave.getLeaveType().getLeaveTypeId()));
-        existingLeave.setLeaveType(leaveType);
 
-        // Copy other fields
+        // Validate and update LeaveType
+        if (leave.getLeaveType() != null && leave.getLeaveType().getLeaveTypeId() != null) {
+            LeaveType leaveType = leaveTypeRepo.findById(leave.getLeaveType().getLeaveTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Leave Type not found"));
+            existingLeave.setLeaveType(leaveType);
+        }
+
         existingLeave.setStartDate(leave.getStartDate());
         existingLeave.setEndDate(leave.getEndDate());
-        existingLeave.setTotalDays(leave.getTotalDays());
         existingLeave.setReason(leave.getReason());
         existingLeave.setStatus(leave.getStatus());
-
-        // Validate ApprovedBy if provided
-        if (leave.getApprovedBy() != null && leave.getApprovedBy().getUserId() != null) {
-            User approvedBy = userRepo.findById(leave.getApprovedBy().getUserId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Approved By User not found with ID: " + leave.getApprovedBy().getUserId()));
-            existingLeave.setApprovedBy(approvedBy);
-        } else {
-            existingLeave.setApprovedBy(null);
-        }
 
         return employeeLeaveRepo.save(existingLeave);
     }
