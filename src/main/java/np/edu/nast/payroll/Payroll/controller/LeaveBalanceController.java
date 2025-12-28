@@ -8,6 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/leave-balance")
+@CrossOrigin(origins = "http://localhost:5173")
 public class LeaveBalanceController {
 
     private final LeaveBalanceService leaveBalanceService;

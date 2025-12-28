@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "employee_leave")
@@ -46,12 +47,25 @@ public class EmployeeLeave {
     @Column(nullable = false, updatable = false)
     private LocalDateTime requestedAt;
 
-    // The User who approved the request
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "approved_by_user_id", nullable = true)
     private User approvedBy;
 
-    // The timestamp when the status was changed to Approved
     @Column(name = "approved_at", nullable = true)
     private LocalDateTime approvedAt;
+
+    // --- MERGED CALLBACK METHOD ---
+    @PrePersist
+    public void handleBeforeInsert() {
+        // 1. Calculate totalDays to prevent DataIntegrityViolationException
+        if (this.startDate != null && this.endDate != null) {
+            long days = ChronoUnit.DAYS.between(this.startDate, this.endDate) + 1;
+            this.totalDays = (int) days;
+        }
+
+        // 2. Default status to "Pending" if not set
+        if (this.status == null || this.status.isEmpty()) {
+            this.status = "Pending";
+        }
+    }
 }
