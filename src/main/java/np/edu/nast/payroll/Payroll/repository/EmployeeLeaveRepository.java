@@ -17,4 +17,6 @@ public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, In
 
     // New line added for status counting
     long countByStatus(String status);
+
+    List<EmployeeLeave> findAllByEmployee(Employee employee);
 }

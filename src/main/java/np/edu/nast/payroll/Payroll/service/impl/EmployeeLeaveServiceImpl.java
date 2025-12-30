@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -55,6 +56,11 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
     @Override
     @Transactional
     public EmployeeLeave requestLeave(EmployeeLeave leave) {
+<<<<<<< HEAD
+=======
+
+        // Validate and Fetch Employee
+>>>>>>> 86caac33051e72117f51143142d1dd3bbf2794a9
         if (leave.getEmployee() == null || leave.getEmployee().getEmpId() == null) {
             throw new IllegalArgumentException("Employee ID is required");
         }
@@ -62,6 +68,10 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found with ID: " + leave.getEmployee().getEmpId()));
         leave.setEmployee(employee);
 
+<<<<<<< HEAD
+=======
+        // Validate and Fetch LeaveType
+>>>>>>> 86caac33051e72117f51143142d1dd3bbf2794a9
         if (leave.getLeaveType() == null || leave.getLeaveType().getLeaveTypeId() == null) {
             throw new IllegalArgumentException("Leave Type ID is required");
         }
@@ -69,6 +79,22 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
                 .orElseThrow(() -> new IllegalArgumentException("Leave Type not found with ID: " + leave.getLeaveType().getLeaveTypeId()));
         leave.setLeaveType(leaveType);
 
+<<<<<<< HEAD
+=======
+        // --- NEW CALCULATION LOGIC ---
+        // Ensure totalDays is calculated before saving
+        if (leave.getStartDate() != null && leave.getEndDate() != null) {
+            long days = ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1;
+            leave.setTotalDays((int) days);
+        }
+
+        // Set default status if empty
+        if (leave.getStatus() == null || leave.getStatus().isEmpty()) {
+            leave.setStatus("Pending");
+        }
+
+        // Validate ApprovedBy user if provided (usually null on initial request)
+>>>>>>> 86caac33051e72117f51143142d1dd3bbf2794a9
         if (leave.getApprovedBy() != null && leave.getApprovedBy().getUserId() != null) {
             User approvedBy = userRepo.findById(leave.getApprovedBy().getUserId())
                     .orElseThrow(() -> new IllegalArgumentException("Approved By User not found with ID: " + leave.getApprovedBy().getUserId()));
@@ -105,6 +131,7 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
         EmployeeLeave existingLeave = employeeLeaveRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Leave not found with ID: " + id));
 
+<<<<<<< HEAD
         if (leave.getEmployee() == null || leave.getEmployee().getEmpId() == null) {
             throw new IllegalArgumentException("Employee ID is required");
         }
@@ -118,13 +145,34 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
         LeaveType leaveType = leaveTypeRepo.findById(leave.getLeaveType().getLeaveTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Leave Type not found with ID: " + leave.getLeaveType().getLeaveTypeId()));
         existingLeave.setLeaveType(leaveType);
+=======
+        // Re-calculate days if dates changed
+        if (leave.getStartDate() != null && leave.getEndDate() != null) {
+            long days = ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1;
+            existingLeave.setTotalDays((int) days);
+        }
+
+        // Validate and update Employee
+        if (leave.getEmployee() != null && leave.getEmployee().getEmpId() != null) {
+            Employee employee = employeeRepo.findById(leave.getEmployee().getEmpId())
+                    .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+            existingLeave.setEmployee(employee);
+        }
+
+        // Validate and update LeaveType
+        if (leave.getLeaveType() != null && leave.getLeaveType().getLeaveTypeId() != null) {
+            LeaveType leaveType = leaveTypeRepo.findById(leave.getLeaveType().getLeaveTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Leave Type not found"));
+            existingLeave.setLeaveType(leaveType);
+        }
+>>>>>>> 86caac33051e72117f51143142d1dd3bbf2794a9
 
         existingLeave.setStartDate(leave.getStartDate());
         existingLeave.setEndDate(leave.getEndDate());
-        existingLeave.setTotalDays(leave.getTotalDays());
         existingLeave.setReason(leave.getReason());
         existingLeave.setStatus(leave.getStatus());
 
+<<<<<<< HEAD
         if (leave.getApprovedBy() != null && leave.getApprovedBy().getUserId() != null) {
             User approvedBy = userRepo.findById(leave.getApprovedBy().getUserId())
                     .orElseThrow(() -> new IllegalArgumentException("Approved By User not found with ID: " + leave.getApprovedBy().getUserId()));
@@ -133,6 +181,8 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
             existingLeave.setApprovedBy(null);
         }
 
+=======
+>>>>>>> 86caac33051e72117f51143142d1dd3bbf2794a9
         return employeeLeaveRepo.save(existingLeave);
     }
 }
