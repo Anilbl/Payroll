@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/departments/**").permitAll()
                         .requestMatchers("/api/designations/**").permitAll()
                         .requestMatchers("/api/leaves/**").permitAll()
+                        .requestMatchers("/api/attendance/**").permitAll()
 
                         // 3. Role-based access control (Keep these for specific dashboard actions)
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
