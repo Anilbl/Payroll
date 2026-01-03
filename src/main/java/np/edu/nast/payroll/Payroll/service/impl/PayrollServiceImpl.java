@@ -1,90 +1,136 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
-import np.edu.nast.payroll.Payroll.entity.Payroll;
+import lombok.RequiredArgsConstructor;
 import np.edu.nast.payroll.Payroll.dto.auth.PayrollRequest;
+import np.edu.nast.payroll.Payroll.entity.*;
 import np.edu.nast.payroll.Payroll.repository.*;
 import np.edu.nast.payroll.Payroll.service.PayrollService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.mail.internet.MimeMessage;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class PayrollServiceImpl implements PayrollService {
 
-    @Autowired private PayrollRepository payrollRepo;
-    @Autowired private EmployeeRepository employeeRepo;
-    @Autowired private BankAccountRepository bankAccountRepo;
-    @Autowired private PaymentMethodRepository paymentMethodRepo;
-    @Autowired private UserRepository userRepo;
-    @Autowired private PayGroupRepository payGroupRepo;
-
-    @Override
-    public List<Payroll> getAllPayrolls() {
-        return payrollRepo.findAll();
-    }
-
-    @Override
-    @Transactional
-    public Payroll updateStatus(Integer id, String newStatus) {
-        Payroll payroll = payrollRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payroll record not found with id: " + id));
-        payroll.setStatus(newStatus);
-        return payrollRepo.save(payroll);
-    }
+    private final PayrollRepository payrollRepo;
+    private final EmployeeRepository employeeRepo;
+    private final BankAccountRepository bankAccountRepo;
+    private final PaymentMethodRepository paymentMethodRepo;
+    private final PayGroupRepository payGroupRepo;
+    private final UserRepository userRepo;
+    private final EmployeeSalaryComponentRepository escRepo;
+    private final TaxSlabRepository taxSlabRepo;
+    private final JavaMailSender mailSender; // For Email Dispatch
 
     @Override
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')") // RBAC
     public Payroll processPayrollRequest(PayrollRequest request) {
-        var employee = employeeRepo.findById(request.getEmpId())
-                .orElseThrow(() -> new RuntimeException("Employee ID not found."));
+        Employee employee = employeeRepo.findById(request.getEmpId())
+                .orElseThrow(() -> new RuntimeException("Employee not found ID: " + request.getEmpId()));
 
-        Payroll payroll = new Payroll();
-        payroll.setEmployee(employee);
+        List<EmployeeSalaryComponent> components = escRepo.findByEmployeeEmpIdAndIsActiveTrue(request.getEmpId());
 
-        Integer pGroupId = (request.getPayGroupId() != null) ? request.getPayGroupId() : 1;
-        var payGroup = payGroupRepo.findById(pGroupId).orElseThrow();
-        payroll.setPayGroup(payGroup);
+        double basicSalary = 0.0;
+        double totalAllowances = 0.0;
+        double totalDeductions = 0.0;
 
-        Integer accId = (request.getAccountId() != null) ? request.getAccountId() : 1;
-        var account = bankAccountRepo.findById(accId).orElseThrow();
-        payroll.setPaymentAccount(account);
+        for (EmployeeSalaryComponent esc : components) {
+            if (esc.getSalaryComponent().getComponentName().equalsIgnoreCase("Basic Salary")) {
+                basicSalary = esc.getValue();
+            }
+        }
 
-        Integer methodId = (request.getPaymentMethodId() != null) ? request.getPaymentMethodId() : 1;
-        var method = paymentMethodRepo.findById(methodId).orElseThrow();
-        payroll.setPaymentMethod(method);
+        for (EmployeeSalaryComponent esc : components) {
+            SalaryComponent sc = esc.getSalaryComponent();
+            double value = esc.getValue();
+            double calculatedAmt = sc.getCalculationMethod().equalsIgnoreCase("percentage_of_basic")
+                    ? (value / 100) * basicSalary : value;
 
-        var adminUser = userRepo.findById(6).orElseThrow();
-        payroll.setProcessedBy(adminUser);
+            String typeName = sc.getComponentType().getName();
+            if (typeName.equalsIgnoreCase("allowance")) {
+                totalAllowances += calculatedAmt;
+            } else if (typeName.equalsIgnoreCase("deduction")) {
+                totalDeductions += calculatedAmt;
+            }
+        }
 
-        payroll.setGrossSalary(request.getGrossSalary() != null ? request.getGrossSalary() : 0.0);
-        payroll.setTotalAllowances(request.getTotalAllowances() != null ? request.getTotalAllowances() : 0.0);
-        payroll.setTotalDeductions(request.getTotalDeductions() != null ? request.getTotalDeductions() : 0.0);
+        double taxableIncomeMonthly = (basicSalary + totalAllowances) - totalDeductions;
+        double annualTaxable = taxableIncomeMonthly * 12;
+        double annualTax = calculateAnnualTax(annualTaxable, "Single");
+        double monthlyTax = annualTax / 12;
 
-        return calculateAndSave(payroll);
-    }
+        Payroll payroll = Payroll.builder()
+                .employee(employee)
+                .grossSalary(basicSalary + totalAllowances)
+                .totalAllowances(totalAllowances)
+                .totalDeductions(totalDeductions)
+                .totalTax(monthlyTax)
+                .netSalary((basicSalary + totalAllowances) - (totalDeductions + monthlyTax))
+                .status("PROCESSED")
+                .payPeriodStart(LocalDate.now().withDayOfMonth(1))
+                .payPeriodEnd(LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()))
+                .payDate(LocalDate.now())
+                .processedAt(LocalDateTime.now())
+                .build();
 
-    private Payroll calculateAndSave(Payroll payroll) {
-        double gross = payroll.getGrossSalary();
-        double allow = payroll.getTotalAllowances();
-        double deduct = payroll.getTotalDeductions();
-        double tax = (gross + allow) * 0.01;
-        double net = (gross + allow) - (deduct + tax);
-
-        payroll.setTotalTax(tax);
-        payroll.setNetSalary(net);
-        payroll.setStatus("PROCESSED");
-        payroll.setProcessedAt(LocalDateTime.now());
-        payroll.setPayPeriodStart(LocalDate.now().withDayOfMonth(1));
-        payroll.setPayPeriodEnd(LocalDate.now());
-        payroll.setPayDate(LocalDate.now());
+        payroll.setPaymentAccount(bankAccountRepo.findById(request.getAccountId() != null ? request.getAccountId() : 1).orElseThrow());
+        payroll.setPaymentMethod(paymentMethodRepo.findById(request.getPaymentMethodId() != null ? request.getPaymentMethodId() : 1).orElseThrow());
+        payroll.setProcessedBy(userRepo.findById(6).orElseThrow());
 
         return payrollRepo.save(payroll);
     }
 
+    // NEW: Method to dispatch email to employee
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    public void sendEmailSlip(Integer payrollId) {
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Payroll record not found"));
+
+        String recipientEmail = payroll.getEmployee().getEmail();
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setTo(recipientEmail);
+            helper.setSubject("Salary Slip - " + payroll.getPayPeriodStart().getMonth());
+            helper.setText("Dear " + payroll.getEmployee().getFirstName() + ",\n\nYour payroll has been processed. Please find the details attached.");
+
+            // Logic to attach PDF would go here
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send email: " + e.getMessage());
+        }
+    }
+
+    private double calculateAnnualTax(double income, String status) {
+        List<TaxSlab> slabs = taxSlabRepo.findAllByOrderByMinAmountAsc();
+        double tax = 0;
+        for (TaxSlab slab : slabs) {
+            if (income > slab.getMinAmount()) {
+                double taxableInSlab = Math.min(income, slab.getMaxAmount()) - slab.getMinAmount();
+                tax += taxableInSlab * (slab.getRatePercentage() / 100);
+            }
+        }
+        return tax;
+    }
+
+    @Override public List<Payroll> getAllPayrolls() { return payrollRepo.findAll(); }
     @Override public Payroll savePayroll(Payroll p) { return payrollRepo.save(p); }
     @Override public Payroll getPayrollById(Integer id) { return payrollRepo.findById(id).orElse(null); }
     @Override public void deletePayroll(Integer id) { payrollRepo.deleteById(id); }
+    @Override public Payroll updateStatus(Integer id, String status) {
+        Payroll p = getPayrollById(id);
+        if(p != null) p.setStatus(status);
+        return payrollRepo.save(p);
+    }
 }
