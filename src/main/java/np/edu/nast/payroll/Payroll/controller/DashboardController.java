@@ -45,6 +45,7 @@ public class DashboardController {
 
     @GetMapping("/recent-attendance")
     public List<Attendance> getRecentAttendance() {
-        return attendanceRepository.findTodaysAttendance();
+        return attendanceRepository.findAllByAttendanceDate(LocalDate.now());
+
     }
 }

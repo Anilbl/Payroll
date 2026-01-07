@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class ReportSummaryDTO {
+public class PayrollSummaryDTO {
     private long totalEmployees;
     private double monthlyPayroll;
     private double totalDeductions;

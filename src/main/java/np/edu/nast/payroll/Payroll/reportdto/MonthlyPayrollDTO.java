@@ -4,8 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
-@AllArgsConstructor
+
 public class MonthlyPayrollDTO {
     private String month;
     private double amount;
+   public MonthlyPayrollDTO(String month, double amount) {
+       this.month = month;
+       this.amount = amount;
+   }
 }

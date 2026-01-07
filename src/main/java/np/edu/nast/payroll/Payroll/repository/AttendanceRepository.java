@@ -1,38 +1,32 @@
 package np.edu.nast.payroll.Payroll.repository;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
 import np.edu.nast.payroll.Payroll.entity.Attendance;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.time.LocalDate;
 import java.util.List;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Integer> {
-    // ✔ Employee attendance history
+
+
+    // Fixes DashboardController
+    long countByAttendanceDate(LocalDate date);
+    List<Attendance> findAllByAttendanceDate(LocalDate date);
+
+    // Fixes AttendanceServiceImpl
     List<Attendance> findByEmployee_EmpId(Integer empId);
 
-    // ✔ Daily dashboard count
-    long countByAttendanceDate(LocalDate attendanceDate);
-
-    // ✔ Summary cards (Present / Absent / Leave)
-    long countByEmployee_EmpIdAndStatus(Integer empId, String status);
-
-
-
-
-
-
-
-    // ✔ Admin dashboard (today)
     @Query("""
-        SELECT a 
-        FROM Attendance a 
-        WHERE a.attendanceDate = CURRENT_DATE 
-        ORDER BY a.checkInTime DESC
-    """)
-    List<Attendance> findTodaysAttendance();
-
-
-
-
+    SELECT
+        SUM(CASE WHEN a.status='PRESENT' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN a.status='ABSENT' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN a.status='LEAVE' THEN 1 ELSE 0 END)
+    FROM Attendance a
+    WHERE YEAR(a.attendanceDate)=:year AND MONTH(a.attendanceDate)=:month
+""")
+    List<Object[]> summary(@Param("year") int year, @Param("month") int month);
 
 }

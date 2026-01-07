@@ -6,9 +6,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class AttendanceSummaryDTO {
-    private long totalPresent;
-    private long totalAbsent;
-    private long lateArrivals;
-    private double overtimeHours;
-    private double overtimePay;
+    private long presentDays;
+    private long absentDays;
+    private long leaveDays;
 }
