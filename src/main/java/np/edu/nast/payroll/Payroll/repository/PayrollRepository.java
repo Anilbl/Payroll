@@ -8,7 +8,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
@@ -37,6 +36,7 @@ public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
     double yearlyAllowances(int year);
 
 
+
     @Query("""
     SELECT new np.edu.nast.payroll.Payroll.reportdto.MonthlyPayrollDTO(
         FUNCTION('MONTHNAME', p.payDate), SUM(p.netSalary)
@@ -49,20 +49,5 @@ public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
     List<MonthlyPayrollDTO> monthlyPayroll(@Param("year") int year);
 
 
-    @Query("""
-       SELECT p
-       FROM Payroll p
-       JOIN p.employee e
-       LEFT JOIN e.bankAccounts b ON b.isPrimary = TRUE
-       WHERE e.id = :empId
-         AND FUNCTION('DATE_FORMAT', p.payDate, '%Y') = :year
-         AND FUNCTION('DATE_FORMAT', p.payDate, '%m') = :month
-       """)
-    Optional<Payroll> findPayrollForMonth(
-            @Param("empId") Integer empId,
-            @Param("year") String year,
-            @Param("month") String month
-    );
 
 }
-

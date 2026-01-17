@@ -5,10 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
@@ -27,7 +24,4 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
             "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Employee> searchByIdOrName(@Param("query") String query);
-
-    Optional<Employee> findByEmail(String email);
-
 }

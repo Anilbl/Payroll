@@ -12,6 +12,4 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     // Needed for Reset Password
     Optional<User> findByResetToken(String resetToken);
-    Optional<User> findByEmail(String email);
-
 }
