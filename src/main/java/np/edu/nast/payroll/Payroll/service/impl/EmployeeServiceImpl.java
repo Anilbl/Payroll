@@ -8,7 +8,6 @@ import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
 import np.edu.nast.payroll.Payroll.repository.DepartmentRepository;
 import np.edu.nast.payroll.Payroll.repository.DesignationRepository;
 import np.edu.nast.payroll.Payroll.service.EmployeeService;
-import np.edu.nast.payroll.Payroll.service.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,77 +20,85 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepo;
     private final DepartmentRepository departmentRepo;
     private final DesignationRepository designationRepo;
-    private final EmailService emailService;
 
     public EmployeeServiceImpl(EmployeeRepository employeeRepo,
                                DepartmentRepository departmentRepo,
-                               DesignationRepository designationRepo,
-                               EmailService emailService) {
+                               DesignationRepository designationRepo) {
         this.employeeRepo = employeeRepo;
         this.departmentRepo = departmentRepo;
         this.designationRepo = designationRepo;
-        this.emailService = emailService;
     }
 
+    /* =========================
+       CREATE EMPLOYEE
+       ========================= */
     @Override
     public Employee create(Employee employee) {
-        // 1. Email Uniqueness Check
+
+        // EMAIL UNIQUENESS CHECK
         if (employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already registered: " + employee.getEmail());
+            throw new EmailAlreadyExistsException("Email already exists");
         }
 
-        // 2. Resolve Relationships
+        // FK NULL CHECK
+        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null) {
+            throw new IllegalArgumentException("Department ID is required");
+        }
+        if (employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
+            throw new IllegalArgumentException("Designation ID is required");
+        }
+
+        // FK EXISTENCE CHECK
         Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException("Department not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Department not found with id: " + employee.getDepartment().getDeptId()
+                ));
 
         Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException("Designation not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Designation not found with id: " + employee.getPosition().getDesignationId()
+                ));
 
         employee.setDepartment(department);
         employee.setPosition(designation);
 
-        // 3. Capture the Transient password from AddEmployee.jsx
-        String rawPassword = employee.getPassword();
-
-        // 4. Save to Database
-        Employee savedEmployee = employeeRepo.save(employee);
-
-        // 5. Send Email
-        if (rawPassword != null && !rawPassword.isEmpty()) {
-            try {
-                emailService.sendRegistrationEmail(
-                        savedEmployee.getEmail(),
-                        savedEmployee.getFirstName() + " " + savedEmployee.getLastName(),
-                        rawPassword
-                );
-            } catch (Exception e) {
-                System.err.println("Mailing Error: Record saved, but email failed. Reason: " + e.getMessage());
-            }
-        }
-
-        return savedEmployee;
+        return employeeRepo.save(employee);
     }
 
+    /* =========================
+       UPDATE EMPLOYEE
+       ========================= */
     @Override
     public Employee update(Integer id, Employee employee) {
-        // Fetch existing record to ensure we have the correct persistent identity
+
         Employee existing = employeeRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
 
-        // Email uniqueness check (ignore if email belongs to the current record)
-        if (employee.getEmail() != null && !employee.getEmail().equals(existing.getEmail()) &&
+        // EMAIL UNIQUENESS CHECK (ALLOW SAME EMPLOYEE)
+        if (employee.getEmail() != null &&
+                !employee.getEmail().equals(existing.getEmail()) &&
                 employeeRepo.existsByEmail(employee.getEmail())) {
             throw new EmailAlreadyExistsException("Email already exists");
         }
 
-        // Resolve updated Department and Designation
+        // FK NULL CHECK
+        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null ||
+                employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
+            throw new IllegalArgumentException("Department and Designation IDs are required");
+        }
+
+        // FK EXISTENCE CHECK
         Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException("Department not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Department not found with id: " + employee.getDepartment().getDeptId()
+                ));
 
         Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException("Designation not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Designation not found with id: " + employee.getPosition().getDesignationId()
+                ));
 
-        // Map values from frontend payload to existing entity
+        // UPDATE VALUES
         existing.setDepartment(department);
         existing.setPosition(designation);
         existing.setFirstName(employee.getFirstName());
@@ -100,24 +107,25 @@ public class EmployeeServiceImpl implements EmployeeService {
         existing.setMaritalStatus(employee.getMaritalStatus());
         existing.setEducation(employee.getEducation());
         existing.setEmploymentStatus(employee.getEmploymentStatus());
+        existing.setJoiningDate(employee.getJoiningDate());
         existing.setAddress(employee.getAddress());
         existing.setIsActive(employee.getIsActive());
 
-        if (employee.getJoiningDate() != null) {
-            existing.setJoiningDate(employee.getJoiningDate());
-        }
-
+        // EMAIL = SOURCE OF TRUTH
         if (employee.getEmail() != null) {
             existing.setEmail(employee.getEmail());
+
             if (existing.getUser() != null) {
                 existing.getUser().setEmail(employee.getEmail());
             }
         }
 
-        // The 'existing' object still holds the correct empId mapping for the WHERE clause
         return employeeRepo.save(existing);
     }
 
+    /* =========================
+       DELETE EMPLOYEE
+       ========================= */
     @Override
     public void delete(Integer id) {
         Employee employee = employeeRepo.findById(id)
@@ -125,17 +133,26 @@ public class EmployeeServiceImpl implements EmployeeService {
         employeeRepo.delete(employee);
     }
 
+    /* =========================
+       GET EMPLOYEE BY ID
+       ========================= */
     @Override
     public Employee getById(Integer id) {
         return employeeRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
     }
 
+    /* =========================
+       GET ALL EMPLOYEES
+       ========================= */
     @Override
     public List<Employee> getAll() {
         return employeeRepo.findAll();
     }
 
+    /* =========================
+       ACTIVE EMPLOYEE STATS
+       ========================= */
     @Override
     public Map<Integer, Long> getActiveEmployeeStats() {
         List<Object[]> result = employeeRepo.countActiveEmployeesPerMonth();
