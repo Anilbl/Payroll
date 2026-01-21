@@ -5,10 +5,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long> {
-    // FIX: Change to Integer to resolve build failure
-    List<LeaveBalance> findByEmployeeEmpId(Integer empId);
+public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Integer> {
 
-    // Used for automatic deduction math
-    Optional<LeaveBalance> findByEmployeeEmpIdAndLeaveTypeLeaveTypeId(Integer empId, Integer leaveTypeId);
+    // Fixes getLeaveBalanceByEmployee
+    List<LeaveBalance> findByEmployee_EmpId(Integer empId);
+
+    // Fixes updateBalanceAfterApproval
+    Optional<LeaveBalance> findByEmployee_EmpIdAndLeaveType_LeaveTypeIdAndYear(
+            Integer empId, Integer leaveTypeId, Integer year);
+
+    // Fixes DashboardController error
+    List<LeaveBalance> findAllByEmployee_EmpIdAndYear(Integer empId, Integer year);
 }

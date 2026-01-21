@@ -1,14 +1,13 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
-import np.edu.nast.payroll.Payroll.entity.Employee;
-import np.edu.nast.payroll.Payroll.entity.Department;
-import np.edu.nast.payroll.Payroll.entity.Designation;
+import np.edu.nast.payroll.Payroll.dto.auth.DashboardStatsDTO;
+import np.edu.nast.payroll.Payroll.entity.*;
 import np.edu.nast.payroll.Payroll.exception.EmailAlreadyExistsException;
-import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
-import np.edu.nast.payroll.Payroll.repository.DepartmentRepository;
-import np.edu.nast.payroll.Payroll.repository.DesignationRepository;
+import np.edu.nast.payroll.Payroll.exception.ResourceNotFoundException;
+import np.edu.nast.payroll.Payroll.repository.*;
 import np.edu.nast.payroll.Payroll.service.EmployeeService;
 import np.edu.nast.payroll.Payroll.service.EmailService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,119 +20,140 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepo;
     private final DepartmentRepository departmentRepo;
     private final DesignationRepository designationRepo;
+    private final UserRepository userRepo;
+    private final RoleRepository roleRepo;
     private final EmailService emailService;
+    private final AttendanceRepository attendanceRepo;
+    private final PasswordEncoder passwordEncoder;
 
     public EmployeeServiceImpl(EmployeeRepository employeeRepo,
                                DepartmentRepository departmentRepo,
                                DesignationRepository designationRepo,
-                               EmailService emailService) {
+                               UserRepository userRepo,
+                               RoleRepository roleRepo,
+                               EmailService emailService,
+                               AttendanceRepository attendanceRepo,
+                               PasswordEncoder passwordEncoder) {
         this.employeeRepo = employeeRepo;
         this.departmentRepo = departmentRepo;
         this.designationRepo = designationRepo;
+        this.userRepo = userRepo;
+        this.roleRepo = roleRepo;
         this.emailService = emailService;
+        this.attendanceRepo = attendanceRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public Employee create(Employee employee) {
-        // 1. Email Uniqueness Check
         if (employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already registered: " + employee.getEmail());
+            throw new EmailAlreadyExistsException("Employee email already exists: " + employee.getEmail());
         }
 
-        // 2. Resolve Relationships
-        Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException("Department not found"));
+        Department dept = departmentRepo.findById(employee.getDepartment().getDeptId())
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        Designation desig = designationRepo.findById(employee.getPosition().getDesignationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Designation not found"));
 
-        Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException("Designation not found"));
+        employee.setDepartment(dept);
+        employee.setPosition(desig);
 
-        employee.setDepartment(department);
-        employee.setPosition(designation);
+        User user = userRepo.findByEmailIgnoreCase(employee.getEmail()).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setEmail(employee.getEmail());
+            newUser.setUsername(employee.getEmail().split("@")[0]);
+            newUser.setPassword(passwordEncoder.encode("NAST123!"));
+            newUser.setStatus("ACTIVE");
 
-        // 3. Capture the Transient password from AddEmployee.jsx
-        String rawPassword = employee.getPassword();
+            Role employeeRole = roleRepo.findByRoleName("Employee")
+                    .orElseThrow(() -> new ResourceNotFoundException("Role 'Employee' not found."));
 
-        // 4. Save to Database
+            newUser.setRole(employeeRole);
+            return userRepo.save(newUser);
+        });
+
+        employee.setUser(user);
+        // Ensure new employees are active by default
+        employee.setIsActive(true);
         Employee savedEmployee = employeeRepo.save(employee);
 
-        // 5. Send Email
-        if (rawPassword != null && !rawPassword.isEmpty()) {
-            try {
-                emailService.sendRegistrationEmail(
-                        savedEmployee.getEmail(),
-                        savedEmployee.getFirstName() + " " + savedEmployee.getLastName(),
-                        rawPassword
-                );
-            } catch (Exception e) {
-                System.err.println("Mailing Error: Record saved, but email failed. Reason: " + e.getMessage());
-            }
-        }
+        user.setEmpId(savedEmployee.getEmpId());
+        userRepo.save(user);
 
         return savedEmployee;
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Employee> getAll() {
+        return employeeRepo.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Employee getById(Integer id) {
+        return employeeRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+    }
+
+    @Override
     public Employee update(Integer id, Employee employee) {
-        // Fetch existing record to ensure we have the correct persistent identity
-        Employee existing = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-
-        // Email uniqueness check (ignore if email belongs to the current record)
-        if (employee.getEmail() != null && !employee.getEmail().equals(existing.getEmail()) &&
-                employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already exists");
-        }
-
-        // Resolve updated Department and Designation
-        Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException("Department not found"));
-
-        Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException("Designation not found"));
-
-        // Map values from frontend payload to existing entity
-        existing.setDepartment(department);
-        existing.setPosition(designation);
+        Employee existing = getById(id);
         existing.setFirstName(employee.getFirstName());
         existing.setLastName(employee.getLastName());
         existing.setContact(employee.getContact());
-        existing.setMaritalStatus(employee.getMaritalStatus());
-        existing.setEducation(employee.getEducation());
-        existing.setEmploymentStatus(employee.getEmploymentStatus());
         existing.setAddress(employee.getAddress());
+        existing.setEducation(employee.getEducation());
+        existing.setMaritalStatus(employee.getMaritalStatus());
+        existing.setEmploymentStatus(employee.getEmploymentStatus());
+        existing.setBasicSalary(employee.getBasicSalary());
+
+        // Use consistent naming: setIsActive
         existing.setIsActive(employee.getIsActive());
 
-        if (employee.getJoiningDate() != null) {
-            existing.setJoiningDate(employee.getJoiningDate());
+        if (employee.getDepartment() != null) {
+            existing.setDepartment(departmentRepo.findById(employee.getDepartment().getDeptId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Dept not found")));
         }
-
-        if (employee.getEmail() != null) {
-            existing.setEmail(employee.getEmail());
-            if (existing.getUser() != null) {
-                existing.getUser().setEmail(employee.getEmail());
-            }
+        if (employee.getPosition() != null) {
+            existing.setPosition(designationRepo.findById(employee.getPosition().getDesignationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Designation not found")));
         }
-
-        // The 'existing' object still holds the correct empId mapping for the WHERE clause
         return employeeRepo.save(existing);
     }
 
     @Override
+    @Transactional
     public void delete(Integer id) {
+        // 1. Find the employee
         Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-        employeeRepo.delete(employee);
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+
+        // 2. Perform Soft Delete by setting status to false
+        // This solves the FK constraint error with bank_account
+        employee.setIsActive(false);
+
+        // 3. Deactivate the associated User account as well (Security Best Practice)
+        if (employee.getUser() != null) {
+            employee.getUser().setStatus("INACTIVE");
+            userRepo.save(employee.getUser());
+        }
+
+        // 4. Save the update
+        employeeRepo.save(employee);
     }
 
     @Override
-    public Employee getById(Integer id) {
-        return employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-    }
+    public DashboardStatsDTO getEmployeeStatsByUserId(Integer userId) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Employee emp = employeeRepo.findByEmail(user.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
 
-    @Override
-    public List<Employee> getAll() {
-        return employeeRepo.findAll();
+        DashboardStatsDTO dto = new DashboardStatsDTO();
+        dto.setFirstName(emp.getFirstName());
+        dto.setLastName(emp.getLastName());
+        dto.setDesignation(emp.getPosition() != null ? emp.getPosition().getDesignationTitle() : "N/A");
+        dto.setLastSalary(emp.getBasicSalary());
+        return dto;
     }
 
     @Override

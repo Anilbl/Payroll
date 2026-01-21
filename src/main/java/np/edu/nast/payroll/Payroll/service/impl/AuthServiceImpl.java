@@ -28,7 +28,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponseDTO authenticateUser(LoginRequestDTO request) {
         try {
-            // 🔐 This is where Spring checks the password against the encoded password in DB
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getUsername(),
@@ -36,15 +35,13 @@ public class AuthServiceImpl implements AuthService {
                     )
             );
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
-            // Explicitly catch wrong password/username
             throw new RuntimeException("Invalid credentials: The password you entered is incorrect.");
         } catch (org.springframework.security.core.AuthenticationException e) {
-            // Catch other security issues (Account locked, disabled, etc.)
             throw new RuntimeException("Authentication failed: " + e.getMessage());
         }
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User '" + request.getUsername() + "' not found in database."));
+                .orElseThrow(() -> new RuntimeException("User not found in database."));
 
         String roleName = user.getRole().getRoleName().toUpperCase();
         if (!roleName.startsWith("ROLE_")) {
@@ -53,8 +50,10 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtils.generateToken(user.getUsername(), roleName);
 
+        // This now works because User.java has empId
         return new LoginResponseDTO(
                 user.getUserId(),
+                user.getEmpId(), // Returns 13 for shyam_worker
                 user.getUsername(),
                 user.getEmail(),
                 roleName,

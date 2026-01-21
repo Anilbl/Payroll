@@ -1,7 +1,6 @@
 package np.edu.nast.payroll.Payroll.service;
 
 import np.edu.nast.payroll.Payroll.entity.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import java.util.List;
 
 public interface UserService {
@@ -9,12 +8,14 @@ public interface UserService {
     List<User> getAll();
     void delete(Integer id);
 
-    // Auth & Password Reset Methods
+    // 🔥 ADD THESE TWO LINES BELOW 🔥
+    User getById(Integer id);
+    User update(Integer id, User user);
+
+    // Existing methods
     void initiatePasswordReset(String email);
     void resetPassword(String token, String newPassword);
     User getByEmail(String email);
-
-    // Administration Methods
     void sendOtpToAllUsers();
     User setupDefaultAccount(Integer empId);
 }

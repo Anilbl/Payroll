@@ -9,7 +9,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     // Needed for Forgot Password
     Optional<User> findByEmailIgnoreCase(String email);
-
+    // For validation checks
+    Boolean existsByEmail(String email);
     // Needed for Reset Password
     Optional<User> findByResetToken(String resetToken);
 }

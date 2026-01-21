@@ -6,15 +6,24 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
+
+    /**
+     * Finds an employee by their email address.
+     * This is crucial for the updated Attendance logic.
+     */
+    Optional<Employee> findByEmail(String email);
 
     @Query("SELECT FUNCTION('MONTH', e.joiningDate) as month, COUNT(e) " +
             "FROM Employee e " +
             "WHERE e.isActive = true " +
             "GROUP BY FUNCTION('MONTH', e.joiningDate)")
     List<Object[]> countActiveEmployeesPerMonth();
+
+    Optional<Employee> findByUser_UserId(Integer userId);
 
     boolean existsByEmail(String email);
 

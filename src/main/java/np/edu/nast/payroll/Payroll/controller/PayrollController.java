@@ -18,13 +18,20 @@ public class PayrollController {
 
     @GetMapping
     public List<Payroll> getAll() {
+        // Main Dashboard: Current month only
         return payrollService.getAllPayrolls();
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<Payroll> updateStatus(@PathVariable Integer id, @RequestBody Map<String, String> statusUpdate) {
-        String newStatus = statusUpdate.get("status");
-        Payroll updatedPayroll = payrollService.updateStatus(id, newStatus);
-        return ResponseEntity.ok(updatedPayroll);
+    @GetMapping("/employee/{empId}/history")
+    public List<Payroll> getEmployeeHistory(@PathVariable Integer empId) {
+        // Professional drill-down for 12-month data
+        return payrollService.getEmployeeHistory(empId);
+    }
+
+    @PutMapping("/{id}/void")
+    public ResponseEntity<Payroll> voidPayroll(@PathVariable Integer id, @RequestBody Map<String, String> request) {
+        String remarks = request.get("remarks");
+        Payroll voidedPayroll = payrollService.voidPayroll(id, remarks);
+        return ResponseEntity.ok(voidedPayroll);
     }
 }

@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import np.edu.nast.payroll.Payroll.entity.Attendance;
 import np.edu.nast.payroll.Payroll.entity.Employee;
 import np.edu.nast.payroll.Payroll.exception.ResourceNotFoundException;
@@ -7,95 +8,76 @@ import np.edu.nast.payroll.Payroll.repository.AttendanceRepository;
 import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
 import np.edu.nast.payroll.Payroll.service.AttendanceService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor // Automatically generates the constructor for final fields
 public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
 
-    public AttendanceServiceImpl(AttendanceRepository attendanceRepository,
-                                 EmployeeRepository employeeRepository) {
-        this.attendanceRepository = attendanceRepository;
-        this.employeeRepository = employeeRepository;
-    }
-
     @Override
+    @Transactional
     public Attendance createAttendance(Attendance attendance) {
-        // FK null check
+        // 1. Validate Employee
         if (attendance.getEmployee() == null || attendance.getEmployee().getEmpId() == null) {
-            throw new IllegalArgumentException("Employee ID is required for attendance");
+            throw new IllegalArgumentException("Employee ID is required");
         }
 
-        // Check if employee exists
         Employee employee = employeeRepository.findById(attendance.getEmployee().getEmpId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with ID: " + attendance.getEmployee().getEmpId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + attendance.getEmployee().getEmpId()));
 
-        attendance.setEmployee(employee);
+        // 2. Set Date (Default to today if null)
+        LocalDate date = (attendance.getAttendanceDate() != null) ? attendance.getAttendanceDate() : LocalDate.now();
+        attendance.setAttendanceDate(date);
 
-        // ✅ SET DATE
-        if (attendance.getAttendanceDate() == null) {
-            attendance.setAttendanceDate(LocalDate.now());
+        // 3. Prevent Duplicates (One record per employee per day)
+        boolean exists = attendanceRepository.existsByEmployee_EmpIdAndAttendanceDate(employee.getEmpId(), date);
+        if (exists) {
+            throw new IllegalStateException("Attendance already recorded for this employee on " + date);
         }
 
-        // ✅ SET STATUS (THIS WAS MISSING)
+        // 4. Set Status and Link Employee
+        attendance.setEmployee(employee);
         if (attendance.getStatus() == null || attendance.getStatus().isBlank()) {
-            // Default logic if no status is provided
-            if (attendance.getCheckInTime() != null) {
-                attendance.setStatus("PRESENT");
-            } else {
-                attendance.setStatus("ABSENT");
-            }
+            attendance.setStatus(attendance.getCheckInTime() != null ? "PRESENT" : "ABSENT");
         } else {
-            // Normalize status to uppercase for consistency
-            attendance.setStatus(attendance.getStatus().toUpperCase()); // e.g., "LEAVE"
+            attendance.setStatus(attendance.getStatus().toUpperCase());
         }
 
         return attendanceRepository.save(attendance);
     }
 
     @Override
+    @Transactional
     public Attendance updateAttendance(Integer id, Attendance updated) {
         Attendance existing = attendanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + id));
 
-        if (updated.getEmployee() == null || updated.getEmployee().getEmpId() == null) {
-            throw new IllegalArgumentException("Employee ID is required for attendance update");
+        // Update Check-Out Time and Status
+        if (updated.getCheckOutTime() != null) {
+            existing.setCheckOutTime(updated.getCheckOutTime());
         }
 
-        Employee employee = employeeRepository.findById(updated.getEmployee().getEmpId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with ID: " + updated.getEmployee().getEmpId()));
-
-        existing.setCheckInTime(updated.getCheckInTime());
-        existing.setCheckOutTime(updated.getCheckOutTime());
-        existing.setAttendanceDate(updated.getAttendanceDate());
-        existing.setInGpsLat(updated.getInGpsLat());
-        existing.setInGpsLong(updated.getInGpsLong());
-        existing.setEmployee(employee);
-
-        if (updated.getStatus() != null && !updated.getStatus().isBlank()) {
+        if (updated.getStatus() != null) {
             existing.setStatus(updated.getStatus().toUpperCase());
         }
+
         return attendanceRepository.save(existing);
     }
 
     @Override
-    public void deleteAttendance(Integer id) {
-        if (!attendanceRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Attendance not found with ID: " + id);
-        }
-        attendanceRepository.deleteById(id);
+    public List<Attendance> getAttendanceByEmployee(Integer empId) {
+        return attendanceRepository.findByEmployee_EmpId(empId);
     }
 
     @Override
     public Attendance getAttendanceById(Integer id) {
-        return attendanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with ID: " + id));
+        return attendanceRepository.findById(id).orElse(null);
     }
 
     @Override
@@ -104,17 +86,11 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public List<Attendance> getAttendanceByEmployee(Integer empId) {
-        // Validate employee existence
-        Employee employee = employeeRepository.findById(empId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + empId));
-
-        return attendanceRepository.findByEmployee_EmpId(employee.getEmpId());
-
-
+    @Transactional
+    public void deleteAttendance(Integer id) {
+        if (!attendanceRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Cannot delete. Attendance not found with ID: " + id);
+        }
+        attendanceRepository.deleteById(id);
     }
-
-
-
-
 }

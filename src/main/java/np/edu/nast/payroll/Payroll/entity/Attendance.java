@@ -10,7 +10,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "attendance")
 @Getter
-@Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Attendance {
 
@@ -20,7 +23,7 @@ public class Attendance {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "emp_id", nullable = false)
-    private Employee employee; // Points to your employee table
+    private Employee employee;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime checkInTime;
@@ -28,8 +31,16 @@ public class Attendance {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime checkOutTime;
 
+    // GPS Coordinates for the Map Link
     private Double inGpsLat;
     private Double inGpsLong;
+
+    /**
+     * FIX: Added workLocation field.
+     * This field stores the string representation (e.g., "28.8475, 80.3160")
+     * to prevent "No Location" displaying in the Admin Dashboard.
+     */
+    private String workLocation;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate attendanceDate;
@@ -37,4 +48,3 @@ public class Attendance {
     @Column(nullable = false)
     private String status; // PRESENT, ABSENT, LEAVE
 }
-

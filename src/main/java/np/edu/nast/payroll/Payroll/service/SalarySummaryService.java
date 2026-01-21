@@ -15,7 +15,7 @@ public class SalarySummaryService {
     public SalarySummaryDTO getSummaryData() {
         SalarySummaryDTO dto = new SalarySummaryDTO();
 
-        // LOGIC FIX: Use primitive double or check for null explicitly to prevent 500 error
+        // FIX: Ensure null values from DB are converted to 0.0 to prevent NPE
         Double gross = payrollRepository.sumTotalGross();
         Double deductions = payrollRepository.sumTotalDeductions();
         Double net = payrollRepository.sumTotalNet();
@@ -24,16 +24,18 @@ public class SalarySummaryService {
         dto.setTotalDeductions(deductions != null ? deductions : 0.0);
         dto.setTotalNet(net != null ? net : 0.0);
 
-        // Required for Dashboard View
+        // Dashboard calculation logic
         dto.setMonthlyPayrollTotal(dto.getTotalNet());
-        dto.setPayrollStatus("Processing");
+
+        // Match status string to your DB Enum: 'Paid', 'Processed', or 'Pending'
+        dto.setPayrollStatus("Live");
         dto.setCompliancePercentage(100);
 
-        // Ensure status string matches exactly what is in your database
-        long pending = payrollRepository.countByStatus("PENDING");
-        dto.setPendingVerifications((int) pending);
+        // FIX: Explicitly cast long count to int for the DTO
+        long pendingCount = payrollRepository.countByStatus("PENDING");
+        dto.setPendingVerifications((int) pendingCount);
 
-        // Prevent NullPointerException in Frontend map() function
+        // FIX: Initialize list to avoid "cannot read properties of null (reading 'map')" in React
         dto.setDepartments(new ArrayList<>());
 
         return dto;
