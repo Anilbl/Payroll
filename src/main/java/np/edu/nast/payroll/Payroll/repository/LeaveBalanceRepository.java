@@ -23,6 +23,10 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Inte
 
     // --- Server Changes (New Analytics/Dashboard Query) ---
 
+    List<LeaveBalance> findByEmployeeEmpId(Integer empId);
+
+    // Used for automatic deduction math
+    Optional<LeaveBalance> findByEmployeeEmpIdAndLeaveTypeLeaveTypeId(Integer empId, Integer leaveTypeId);
     @Query("""
         SELECT COUNT(DISTINCT lb.employee.empId)
         FROM LeaveBalance lb

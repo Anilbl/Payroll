@@ -7,18 +7,23 @@ import lombok.*;
 @Table(name = "bank")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Bank {
-    @Column(nullable = false)
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "bank_id")
     private Integer bankId;
-    @Column(nullable = false)
+
+    @Column(name = "bank_name", nullable = false)
     private String bankName;
-    @Column(nullable = false)
+
+    @Column(name = "branch_name", nullable = false)
     private String branchName;
-    @Column(nullable = false)
+
+    @Column(name = "branch_code", nullable = false)
     private String branchCode;
-    @Column(nullable = false)
+
+    @Column(name = "address", nullable = false)
     private String address;
-    @Column(nullable = false)
+
+    @Column(name = "contact_number", nullable = false)
     private String contactNumber;
 }

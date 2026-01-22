@@ -10,14 +10,20 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/system-config")
 @CrossOrigin(origins = "http://localhost:5173")
-
 public class SystemConfigController {
 
     @Autowired
     private SystemConfigService service;
 
     @PostMapping
-    public SystemConfig createOrUpdateConfig(@RequestBody SystemConfig config) {
+    public SystemConfig createConfig(@RequestBody SystemConfig config) {
+        return service.saveConfig(config);
+    }
+
+    // ADDED THIS METHOD to handle the PUT request from your frontend
+    @PutMapping("/{id}")
+    public SystemConfig updateConfig(@PathVariable Integer id, @RequestBody SystemConfig config) {
+        config.setConfigId(id); // Ensure the ID from the URL is set into the object
         return service.saveConfig(config);
     }
 

@@ -19,11 +19,38 @@ public class BankServiceImpl implements BankService {
         this.bankRepository = bankRepository;
     }
 
+    /**
+     * This method handles both Creating a new bank and Updating an existing one.
+     * It ensures all mandatory fields are mapped correctly to the snake_case columns.
+     */
     @Override
     public Bank saveBank(Bank bank) {
         if (bank == null) {
-            throw new IllegalArgumentException("Bank must not be null");
+            throw new IllegalArgumentException("Bank data cannot be null");
         }
+
+        // --- CASE 1: UPDATE EXISTING BANK ---
+        if (bank.getBankId() != null) {
+            Bank existing = bankRepository.findById(bank.getBankId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Bank not found with ID: " + bank.getBankId()));
+
+            // Explicitly set fields to ensure they match the persistent entity
+            existing.setBankName(bank.getBankName());
+            existing.setBranchName(bank.getBranchName());
+            existing.setBranchCode(bank.getBranchCode());
+            existing.setAddress(bank.getAddress());
+            existing.setContactNumber(bank.getContactNumber());
+
+            return bankRepository.save(existing);
+        }
+
+        // --- CASE 2: SAVE NEW BANK ---
+        // Basic validation before insert to prevent DB constraint errors
+        if (bank.getBankName() == null || bank.getBankName().isBlank()) {
+            throw new IllegalArgumentException("Bank Name is required.");
+        }
+
         return bankRepository.save(bank);
     }
 
@@ -37,21 +64,8 @@ public class BankServiceImpl implements BankService {
 
     @Override
     public Bank updateBank(Bank bank) {
-        if (bank == null || bank.getBankId() == null) {
-            throw new IllegalArgumentException("Bank ID is required for update");
-        }
-        Bank existing = bankRepository.findById(bank.getBankId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Bank not found with ID: " + bank.getBankId()));
-
-
-        existing.setBankName(bank.getBankName());
-        existing.setBranchName(bank.getBranchName());
-        existing.setBranchCode(bank.getBranchCode());
-        existing.setAddress(bank.getAddress());
-        existing.setContactNumber(bank.getContactNumber());
-
-        return bankRepository.save(existing);
+        // We reuse saveBank logic to maintain consistency
+        return saveBank(bank);
     }
 
     @Override

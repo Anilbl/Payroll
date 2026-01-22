@@ -33,6 +33,6 @@ public class TaxSlab {
     @Column(nullable = false)
     private String description;
 
-    @Column(nullable = false)
+    @Column(name = "taxpayer_status",nullable = false)
     private String taxpayerStatus; // Single or Couple status
 }

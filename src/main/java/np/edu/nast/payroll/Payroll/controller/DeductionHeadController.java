@@ -20,6 +20,13 @@ public class DeductionHeadController {
         return service.saveDeductionHead(head);
     }
 
+    // ADDED: This handles the PUT request from your frontend edit action
+    @PutMapping("/{id}")
+    public DeductionHead updateDeductionHead(@PathVariable Integer id, @RequestBody DeductionHead head) {
+        head.setDeductionHeadId(id); // Ensure the ID from the URL is set into the object
+        return service.saveDeductionHead(head);
+    }
+
     @GetMapping
     public List<DeductionHead> getAllDeductionHeads() {
         return service.getAllDeductionHeads();

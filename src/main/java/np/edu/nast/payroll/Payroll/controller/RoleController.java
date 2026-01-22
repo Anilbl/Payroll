@@ -3,6 +3,8 @@ package np.edu.nast.payroll.Payroll.controller;
 import np.edu.nast.payroll.Payroll.entity.Role;
 import np.edu.nast.payroll.Payroll.service.RoleService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -15,28 +17,31 @@ public class RoleController {
     private RoleService roleService;
 
     @PostMapping
-    public Role createRole(@RequestBody Role role) {
-        return roleService.saveRole(role);
+    public ResponseEntity<Role> createRole(@RequestBody Role role) {
+        return new ResponseEntity<>(roleService.saveRole(role), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public Role updateRole(@PathVariable Integer id, @RequestBody Role role) {
+    public ResponseEntity<Role> updateRole(@PathVariable Integer id, @RequestBody Role role) {
         role.setRoleId(id);
-        return roleService.updateRole(role);
+        return ResponseEntity.ok(roleService.updateRole(role));
     }
 
     @DeleteMapping("/{id}")
-    public void deleteRole(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteRole(@PathVariable Integer id) {
         roleService.deleteRole(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    public Role getRoleById(@PathVariable Integer id) {
-        return roleService.getRoleById(id);
+    public ResponseEntity<Role> getRoleById(@PathVariable Integer id) {
+        Role role = roleService.getRoleById(id);
+        return role != null ? ResponseEntity.ok(role) : ResponseEntity.notFound().build();
     }
 
     @GetMapping
-    public List<Role> getAllRoles() {
-        return roleService.getAllRoles();
+    public ResponseEntity<List<Role>> getAllRoles() {
+        List<Role> roles = roleService.getAllRoles();
+        return ResponseEntity.ok(roles);
     }
 }

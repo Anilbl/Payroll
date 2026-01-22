@@ -22,31 +22,39 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     @Override
     public SystemConfig saveConfig(SystemConfig config) {
 
-        // ---- NULL VALIDATION ----
+        // 1. Basic Validation
         if (config.getKeyName() == null || config.getKeyName().isBlank()) {
             throw new RuntimeException("SystemConfig keyName must not be null or empty");
-        }
-
-        if (config.getValue() == null) {
-            throw new RuntimeException("SystemConfig value must not be null");
         }
 
         if (config.getUpdatedBy() == null || config.getUpdatedBy().getUserId() == null) {
             throw new RuntimeException("updatedBy user must not be null");
         }
 
-        // ---- FOREIGN KEY VALIDATION ----
+        // 2. Foreign Key Validation
         User user = userRepository.findById(config.getUpdatedBy().getUserId())
-                .orElseThrow(() -> new RuntimeException("UpdatedBy user not found"));
+                .orElseThrow(() -> new RuntimeException("UpdatedBy user not found with ID: " + config.getUpdatedBy().getUserId()));
 
         config.setUpdatedBy(user);
 
-        // ---- HANDLE DUPLICATE KEY (UPDATE IF EXISTS) ----
-        repository.findByKeyName(config.getKeyName()).ifPresent(existing -> {
-            config.setConfigId(existing.getConfigId());
-        });
+        // 3. Update vs Create Logic
+        if (config.getConfigId() != null) {
+            // Logic for UPDATE
+            SystemConfig existing = repository.findById(config.getConfigId())
+                    .orElseThrow(() -> new RuntimeException("Configuration not found with ID: " + config.getConfigId()));
 
-        return repository.save(config);
+            existing.setValue(config.getValue());
+            existing.setDescription(config.getDescription());
+            existing.setUpdatedBy(user);
+            // keyName is usually not changed during update to maintain system integrity
+            return repository.save(existing);
+        } else {
+            // Logic for NEW Record
+            repository.findByKeyName(config.getKeyName()).ifPresent(existing -> {
+                throw new RuntimeException("A configuration with key '" + config.getKeyName() + "' already exists.");
+            });
+            return repository.save(config);
+        }
     }
 
     @Override
