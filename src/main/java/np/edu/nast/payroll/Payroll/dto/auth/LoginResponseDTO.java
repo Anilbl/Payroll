@@ -8,12 +8,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LoginResponseDTO {
-<<<<<<< HEAD
-    private Integer userId;
-    private Integer empId;
-=======
+
     private Integer userId; // Matches your User Entity @Id type
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
+
+    // Essential for linking the login session to an Employee profile
+    private Integer empId;
+
     private String username;
     private String email;
     private String role; // The role name from Role entity

@@ -17,40 +17,29 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    /**
+     * Loads user-specific data from the database.
+     * Spring Security uses this during the authentication process.
+     */
     @Override
-<<<<<<< HEAD
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+
+        // 1. Fetch user from DB or throw exception if missing
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        // Ensure the role name is valid and prefixed correctly for Spring Security
-        String rawRole = user.getRole().getRoleName().toUpperCase();
-        String roleWithPrefix = rawRole.startsWith("ROLE_") ? rawRole : "ROLE_" + rawRole;
-=======
-    public UserDetails loadUserByUsername(String username)
-            throws UsernameNotFoundException {
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + username));
-
+        // 2. Normalize role name
+        // Spring Security @PreAuthorize expects roles to start with "ROLE_"
         String role = user.getRole().getRoleName().toUpperCase();
         if (!role.startsWith("ROLE_")) {
             role = "ROLE_" + role;
         }
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 
+        // 3. Map our User entity to Spring Security's UserDetails object
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-<<<<<<< HEAD
-                Collections.singletonList(new SimpleGrantedAuthority(roleWithPrefix))
-        );
-    }
-}
-=======
                 Collections.singletonList(new SimpleGrantedAuthority(role))
         );
     }
 }
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5

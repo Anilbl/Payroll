@@ -11,33 +11,32 @@ import java.util.ArrayList;
 public class SalarySummaryService {
 
     private final PayrollRepository payrollRepository;
+    private final GlobalSettingService settingsService;
 
     public SalarySummaryDTO getSummaryData() {
-        SalarySummaryDTO dto = new SalarySummaryDTO();
+        // Fetch dynamic config from DB FIRST
+        String liveStatusLabel = settingsService.getValue("DASHBOARD_LIVE_STATUS", "System Live");
+        String pendingStatusKey = settingsService.getValue("STATUS_KEY_PENDING", "PENDING");
+        int defaultCompliance = Integer.parseInt(settingsService.getValue("DEFAULT_COMPLIANCE_RATE", "100"));
 
-        // FIX: Ensure null values from DB are converted to 0.0 to prevent NPE
+        // Fetch Financial Totals
         Double gross = payrollRepository.sumTotalGross();
         Double deductions = payrollRepository.sumTotalDeductions();
         Double net = payrollRepository.sumTotalNet();
 
-        dto.setTotalGross(gross != null ? gross : 0.0);
-        dto.setTotalDeductions(deductions != null ? deductions : 0.0);
-        dto.setTotalNet(net != null ? net : 0.0);
+        // Count pending using the dynamic key from DB
+        long pendingCount = payrollRepository.countByStatus(pendingStatusKey);
 
-        // Dashboard calculation logic
-        dto.setMonthlyPayrollTotal(dto.getTotalNet());
-
-        // Match status string to your DB Enum: 'Paid', 'Processed', or 'Pending'
-        dto.setPayrollStatus("Live");
-        dto.setCompliancePercentage(100);
-
-        // FIX: Explicitly cast long count to int for the DTO
-        long pendingCount = payrollRepository.countByStatus("PENDING");
-        dto.setPendingVerifications((int) pendingCount);
-
-        // FIX: Initialize list to avoid "cannot read properties of null (reading 'map')" in React
-        dto.setDepartments(new ArrayList<>());
-
-        return dto;
+        // Build the DTO using the Builder pattern (Zero Hardcoding)
+        return SalarySummaryDTO.builder()
+                .totalGross(gross != null ? gross : 0.0)
+                .totalDeductions(deductions != null ? deductions : 0.0)
+                .totalNet(net != null ? net : 0.0)
+                .monthlyPayrollTotal(net != null ? net : 0.0)
+                .payrollStatus(liveStatusLabel)
+                .compliancePercentage(defaultCompliance)
+                .pendingVerifications((int) pendingCount)
+                .departments(new ArrayList<>()) // Initialized to prevent frontend crash
+                .build();
     }
 }

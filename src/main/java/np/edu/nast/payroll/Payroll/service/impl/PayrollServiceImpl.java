@@ -27,18 +27,18 @@ public class PayrollServiceImpl implements PayrollService {
     private final UserRepository userRepo;
     private final BankAccountRepository bankAccountRepo;
     private final PaymentMethodRepository paymentMethodRepo;
-    private final PayGroupRepository payGroupRepo; // Required to fix your error
+    private final PayGroupRepository payGroupRepo;
+    // Assuming escRepo is needed for the processPayrollRequest logic
+    private final EmployeeSalaryComponentRepository escRepo;
 
     @Override
     public List<Payroll> getAllPayrolls() {
-        // FIXED: Uses grouping logic to show only the most recent payroll per employee
         return payrollRepo.findLatestPayrollForEachEmployee();
     }
 
     @Override
     public List<Payroll> getEmployeeHistory(Integer empId) {
         return payrollRepo.findByEmployeeEmpIdOrderByPayDateDesc(empId);
-        return payrollRepo.findAll();
     }
 
     @Override
@@ -46,13 +46,11 @@ public class PayrollServiceImpl implements PayrollService {
     public Payroll processPayroll(Map<String, Object> payload) {
         log.info("Processing payroll for payload: {}", payload);
         try {
-            // 1. Extract IDs from the Map (Matches your React keys: empId, accountId, payGroupId)
             Integer empId = Integer.valueOf(payload.get("empId").toString());
             Integer accountId = Integer.valueOf(payload.get("accountId").toString());
             Integer methodId = Integer.valueOf(payload.get("paymentMethodId").toString());
             Integer payGroupId = Integer.valueOf(payload.get("payGroupId").toString());
 
-            // 2. Fetch Entities to satisfy database NOT NULL constraints
             Employee employee = employeeRepo.findById(empId)
                     .orElseThrow(() -> new RuntimeException("Employee not found"));
 
@@ -62,21 +60,18 @@ public class PayrollServiceImpl implements PayrollService {
             PaymentMethod method = paymentMethodRepo.findById(methodId)
                     .orElseThrow(() -> new RuntimeException("Payment Method not found"));
 
-            // FIX: This fetches the PayGroup that was causing the null error
             PayGroup payGroup = payGroupRepo.findById(payGroupId)
                     .orElseThrow(() -> new RuntimeException("Pay Group not found"));
 
-            // Get first available user as admin for 'processedBy'
             User admin = userRepo.findAll().stream().findFirst()
                     .orElseThrow(() -> new RuntimeException("No Admin user found"));
 
-            // 3. Set values on the Entity
             Payroll payroll = new Payroll();
             payroll.setEmployee(employee);
             payroll.setProcessedBy(admin);
             payroll.setPaymentAccount(account);
             payroll.setPaymentMethod(method);
-            payroll.setPayGroup(payGroup); // CRITICAL: This satisfies the DB constraint
+            payroll.setPayGroup(payGroup);
 
             payroll.setPayDate(LocalDate.now());
             payroll.setGrossSalary(Double.parseDouble(payload.get("grossSalary").toString()));
@@ -84,19 +79,19 @@ public class PayrollServiceImpl implements PayrollService {
             payroll.setTotalDeductions(Double.parseDouble(payload.get("totalDeductions").toString()));
             payroll.setStatus("PROCESSED");
 
-            // 4. Calculations (Nepal Labor Act 1% Tax Compliance)
             double grossPlusAllowances = payroll.getGrossSalary() + payroll.getTotalAllowances();
             double tax = grossPlusAllowances * 0.01;
             payroll.setTotalTax(tax);
             payroll.setNetSalary(grossPlusAllowances - (payroll.getTotalDeductions() + tax));
 
-            // 5. Force save and flush
             return payrollRepo.saveAndFlush(payroll);
 
         } catch (Exception e) {
             log.error("Save failed: {}", e.getMessage());
             throw new RuntimeException("Error saving payroll: " + e.getMessage());
         }
+    }
+
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public Payroll voidPayroll(Integer id, String remarks) {
@@ -120,8 +115,6 @@ public class PayrollServiceImpl implements PayrollService {
         double basicSalary = 0.0;
         double totalAllowances = 0.0;
         double totalDeductions = 0.0;
-
-        // Handle Manual Bonus (Festive Bonus)
         double festiveBonus = (request.getManualBonus() != null) ? request.getManualBonus() : 0.0;
 
         for (EmployeeSalaryComponent esc : components) {
@@ -167,7 +160,6 @@ public class PayrollServiceImpl implements PayrollService {
                 .processedAt(LocalDateTime.now())
                 .build();
 
-        // Standard Default IDs for NAST System
         payroll.setPaymentAccount(bankAccountRepo.findById(11).orElseThrow());
         payroll.setPaymentMethod(paymentMethodRepo.findById(1).orElseThrow());
         payroll.setProcessedBy(userRepo.findById(4).orElseThrow());
@@ -175,13 +167,13 @@ public class PayrollServiceImpl implements PayrollService {
         return payrollRepo.save(payroll);
     }
 
-    @Override public Payroll updateStatus(Integer id, String s) {
+    @Override
     public Payroll updateStatus(Integer id, String status) {
         Payroll p = payrollRepo.findById(id).orElseThrow();
         p.setStatus(status);
-        p.setStatus(s);
         return payrollRepo.save(p);
     }
+
     @Override public Payroll savePayroll(Payroll p) { return payrollRepo.save(p); }
     @Override public Payroll getPayrollById(Integer id) { return payrollRepo.findById(id).orElse(null); }
     @Override public void deletePayroll(Integer id) { payrollRepo.deleteById(id); }

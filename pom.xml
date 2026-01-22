@@ -69,7 +69,6 @@
         </dependency>
 
         <dependency>
-<<<<<<< HEAD
             <groupId>com.itextpdf</groupId>
             <artifactId>kernel</artifactId>
             <version>7.2.5</version>
@@ -86,8 +85,6 @@
         </dependency>
 
         <dependency>
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
             <version>0.11.5</version>

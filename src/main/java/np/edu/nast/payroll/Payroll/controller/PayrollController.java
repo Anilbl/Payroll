@@ -27,6 +27,8 @@ public class PayrollController {
         String newStatus = statusUpdate.get("status");
         Payroll updatedPayroll = payrollService.updateStatus(id, newStatus);
         return ResponseEntity.ok(updatedPayroll);
+    }
+
     @GetMapping("/employee/{empId}/history")
     public List<Payroll> getEmployeeHistory(@PathVariable Integer empId) {
         // Professional drill-down for 12-month data

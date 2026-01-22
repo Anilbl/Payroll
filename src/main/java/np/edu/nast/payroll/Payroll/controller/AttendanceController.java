@@ -7,11 +7,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/attendance")
-<<<<<<< HEAD
 @CrossOrigin(origins = "http://localhost:5173")
-=======
-@CrossOrigin(origins = "http://localhost:5173") // Matches your frontend port
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
@@ -20,28 +16,28 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
+    /**
+     * Records a new attendance entry (Check-in).
+     */
     @PostMapping
     public Attendance create(@RequestBody Attendance attendance) {
         return attendanceService.createAttendance(attendance);
     }
 
+    /**
+     * Updates an attendance entry (e.g., Check-out).
+     * Standardized to Integer ID to match the project schema.
+     */
     @PutMapping("/{id}")
-<<<<<<< HEAD
     public Attendance update(@PathVariable Integer id, @RequestBody Attendance attendance) {
         return attendanceService.updateAttendance(id, attendance);
-=======
-    public Attendance update(@PathVariable Long id, @RequestBody Attendance attendance) {
-        // Ensuring ID conversion to match your service's expected type
-        return attendanceService.updateAttendance(id.intValue(), attendance);
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     }
 
+    /**
+     * Retrieves all attendance records for a specific employee.
+     */
     @GetMapping("/employee/{empId}")
     public List<Attendance> getByEmployee(@PathVariable Integer empId) {
         return attendanceService.getAttendanceByEmployee(empId);
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 }

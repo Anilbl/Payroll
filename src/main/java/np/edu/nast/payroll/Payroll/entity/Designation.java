@@ -16,16 +16,16 @@ public class Designation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(nullable = false)
+    @Column(name = "designation_id", nullable = false)
     private Integer designationId;
 
-    @Column(nullable = false)
+    @Column(name = "designation_title", nullable = false)
     private String designationTitle;
-<<<<<<< HEAD
 
-    @Column(nullable = false)
+    /**
+     * The starting salary for this specific position.
+     * Useful for automatic salary calculation in the Employee service.
+     */
+    @Column(name = "base_salary", nullable = false)
     private Double baseSalary;
 }
-=======
-}
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5

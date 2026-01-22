@@ -7,20 +7,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api") // Base path to handle multiple modules
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173")
 public class SalarySummaryController {
 
     private final SalarySummaryService salarySummaryService;
 
-    // Fix for Dashboard: Matches /api/salary-summary/command-center
-    @GetMapping("/salary-summary/command-center")
-    public ResponseEntity<SalarySummaryDTO> getDashboardData() {
-        return ResponseEntity.ok(salarySummaryService.getSummaryData());
-    }
+    /** * REMOVED getDashboardData() from here because it conflicts with
+     * SalaryDashboardController.getCommandCenterStats()
+     **/
 
-    // Fix for Salary Management Page: Matches /api/payrolls/summary
+    // This handles: GET /api/payrolls/summary
     @GetMapping("/payrolls/summary")
     public ResponseEntity<SalarySummaryDTO> getSummary() {
         return ResponseEntity.ok(salarySummaryService.getSummaryData());

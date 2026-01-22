@@ -13,6 +13,7 @@ public class AttendanceReportController {
 
     private final AttendanceReportService service;
 
+    // URL: http://localhost:8080/api/reports/attendance/summary
     @GetMapping("/summary")
     public AttendanceSummaryDTO getSummary(
             @RequestParam int month,

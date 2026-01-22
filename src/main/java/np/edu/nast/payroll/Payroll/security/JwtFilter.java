@@ -32,11 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
-<<<<<<< HEAD
         // 1. Skip filter if header is missing or incorrect
-=======
-        // 1. Skip filter if no Bearer token
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -44,11 +40,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         final String token = authHeader.substring(7);
 
-<<<<<<< HEAD
-        // 2. Handle invalid frontend strings
-=======
         // 2. Handle cases where frontend sends "Bearer null" or "Bearer undefined"
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
         if (token.isBlank() || "null".equalsIgnoreCase(token) || "undefined".equalsIgnoreCase(token)) {
             filterChain.doFilter(request, response);
             return;
@@ -61,10 +53,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtils.validateToken(token)) {
-<<<<<<< HEAD
                     // Pass authorities directly from UserDetails to maintain the ROLE_ prefix
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -72,73 +61,34 @@ public class JwtFilter extends OncePerRequestFilter {
                                     userDetails.getAuthorities()
                             );
 
-<<<<<<< HEAD
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                    // Optional: Debug log to verify authorities in console
-                    // System.out.println("Authenticated: " + username + " with " + userDetails.getAuthorities());
                 }
             }
+            // Continue the chain if successful
+            filterChain.doFilter(request, response);
+
         } catch (ExpiredJwtException ex) {
             sendUnauthorized(response, "TOKEN_EXPIRED", "Session expired. Please login again.");
-            return; // Stop the chain
         } catch (JwtException | IllegalArgumentException ex) {
             sendUnauthorized(response, "INVALID_TOKEN", "Invalid security token.");
-            return; // Stop the chain
         } catch (Exception ex) {
             sendUnauthorized(response, "AUTH_ERROR", "Authentication failed.");
-            return; // Stop the chain
         }
-
-        filterChain.doFilter(request, response);
     }
 
+    /**
+     * Sends a structured JSON error response to the client.
+     * Prevents the filter chain from continuing after a failure.
+     */
     private void sendUnauthorized(HttpServletResponse response, String error, String message) throws IOException {
         SecurityContextHolder.clearContext();
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
+
         String jsonResponse = String.format("{\"error\": \"%s\", \"message\": \"%s\"}", error, message);
-        response.getWriter().write(jsonResponse);
-=======
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-            }
-            // Continue the chain if authentication is successful
-            filterChain.doFilter(request, response);
-
-        } catch (ExpiredJwtException ex) {
-            sendUnauthorized(response, "TOKEN_EXPIRED", "JWT token has expired. Please login again.");
-        } catch (JwtException | IllegalArgumentException ex) {
-            sendUnauthorized(response, "INVALID_TOKEN", "JWT token is invalid.");
-        } catch (Exception ex) {
-            // General catch-all to prevent 400 Bad Request
-            sendUnauthorized(response, "AUTH_ERROR", "An error occurred during authentication.");
-        }
-    }
-
-    private void sendUnauthorized(
-            HttpServletResponse response,
-            String error,
-            String message
-    ) throws IOException {
-        SecurityContextHolder.clearContext();
-
-        // IMPORTANT: Once we write to the response, we do NOT call filterChain.doFilter()
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-
-        String jsonResponse = String.format(
-                "{\"error\": \"%s\", \"message\": \"%s\"}",
-                error, message
-        );
 
         response.getWriter().write(jsonResponse);
         response.getWriter().flush();
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     }
 }

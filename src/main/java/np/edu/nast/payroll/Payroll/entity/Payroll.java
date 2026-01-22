@@ -8,8 +8,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payroll")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @Table(
         name = "payroll",
         indexes = {
@@ -17,11 +15,7 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_payroll_pay_date", columnList = "pay_date")
         }
 )
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Payroll {
 
     @Id
@@ -32,28 +26,19 @@ public class Payroll {
     @Column(name = "payslip_ref", unique = true)
     private String payslipRef;
 
-    @ManyToOne(fetch = FetchType.EAGER)
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "emp_id", nullable = false)
     private Employee employee;
 
-    @ManyToOne(fetch = FetchType.EAGER)
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "processed_by", nullable = false)
     private User processedBy;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "payment_account_id")
-    /* =========================================================
-       FIX: Changed "account_id" to "payment_account_id"
-       to match your MySQL table's mandatory column name.
-       ========================================================= */
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "payment_account_id", nullable = false)
     private BankAccount paymentAccount;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "payment_method_id")
     @JoinColumn(name = "pay_group_id", nullable = true)
     private PayGroup payGroup;
 
@@ -75,7 +60,11 @@ public class Payroll {
 
     @Column(nullable = false)
     private Double totalAllowances = 0.0;
+
+    @Column(nullable = false)
     private Double totalDeductions = 0.0;
+
+    @Column(nullable = false)
     private Double totalTax = 0.0;
 
     @Column(nullable = false)
@@ -91,18 +80,18 @@ public class Payroll {
     private String remarks;
 
     @Column(name = "currency_code")
-    private String currencyCode = "USD";
+    private String currencyCode = "NPR"; // Updated to NPR for your context
 
-    @Column(name = "processed_at")
-    @Builder.Default
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime processedAt = LocalDateTime.now();
+    @Column(name = "processed_at", nullable = false, updatable = false)
+    private LocalDateTime processedAt;
 
     @PrePersist
     protected void onCreate() {
         if (this.processedAt == null) {
             this.processedAt = LocalDateTime.now();
         }
+    }
+
     @JsonProperty("employeeName")
     public String getEmployeeName() {
         return this.employee != null ? this.employee.getFirstName() + " " + this.employee.getLastName() : "N/A";

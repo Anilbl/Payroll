@@ -4,10 +4,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 @Service
 public class EmailService {
 
@@ -17,12 +13,9 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-<<<<<<< HEAD
     /**
      * Sends OTP for password resets
      */
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     public void sendOtpEmail(String to, String otp) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
@@ -30,10 +23,9 @@ public class EmailService {
         message.setText("Your verification code is: " + otp);
         mailSender.send(message);
     }
-<<<<<<< HEAD
 
     /**
-     * NEW: Sends the frontend-generated password to the new employee
+     * Sends the system-generated credentials to the new employee
      */
     public void sendRegistrationEmail(String to, String fullName, String password) {
         SimpleMailMessage message = new SimpleMailMessage();
@@ -50,6 +42,4 @@ public class EmailService {
 
         mailSender.send(message);
     }
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 }

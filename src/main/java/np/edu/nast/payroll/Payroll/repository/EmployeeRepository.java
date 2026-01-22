@@ -5,38 +5,44 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
 import java.util.List;
-<<<<<<< HEAD
 import java.util.Optional;
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
 
-<<<<<<< HEAD
     /**
      * Finds an employee by their email address.
-     * This is crucial for the updated Attendance logic.
+     * Crucial for authentication and attendance validation.
      */
     Optional<Employee> findByEmail(String email);
 
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
+    /**
+     * Maps a Security User ID to an Employee Profile.
+     * Used for the "My Profile" section in the React frontend.
+     */
+    Optional<Employee> findByUser_UserId(Integer userId);
+
+    /**
+     * Prevents duplicate email registration during employee onboarding.
+     */
+    boolean existsByEmail(String email);
+
+    /**
+     * Data for Dashboard Charts.
+     * Counts how many employees joined per month.
+     */
     @Query("SELECT FUNCTION('MONTH', e.joiningDate) as month, COUNT(e) " +
             "FROM Employee e " +
             "WHERE e.isActive = true " +
             "GROUP BY FUNCTION('MONTH', e.joiningDate)")
     List<Object[]> countActiveEmployeesPerMonth();
 
-<<<<<<< HEAD
-    Optional<Employee> findByUser_UserId(Integer userId);
-
-=======
->>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
-    boolean existsByEmail(String email);
-
-    // NEW: Search by ID or Name (Case-Insensitive)
+    /**
+     * Flexible search for the Employee Directory.
+     * Matches against ID, First Name, or Last Name (Case-Insensitive).
+     */
     @Query("SELECT e FROM Employee e WHERE " +
             "CAST(e.empId AS string) = :query OR " +
             "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
