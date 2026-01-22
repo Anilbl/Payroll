@@ -9,4 +9,8 @@ public interface RoleService {
     void deleteRole(Integer roleId);
     Role getRoleById(Integer roleId);
     List<Role> getAllRoles();
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5

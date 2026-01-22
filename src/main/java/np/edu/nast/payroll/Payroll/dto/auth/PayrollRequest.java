@@ -12,9 +12,12 @@ public class PayrollRequest {
     @JsonProperty("empId")
     private Integer empId;
 
+<<<<<<< HEAD
     @JsonProperty("manualBonus")
     private Double manualBonus;
 
+=======
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     @JsonProperty("grossSalary")
     private Double grossSalary;
 
@@ -24,6 +27,10 @@ public class PayrollRequest {
     @JsonProperty("totalDeductions")
     private Double totalDeductions;
 
+<<<<<<< HEAD
+=======
+    // These fields allow the frontend to specify IDs, or the backend will use defaults
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     @JsonProperty("accountId")
     private Integer accountId;
 

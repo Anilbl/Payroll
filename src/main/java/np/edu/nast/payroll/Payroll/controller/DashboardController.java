@@ -1,10 +1,17 @@
 package np.edu.nast.payroll.Payroll.controller;
 
 import np.edu.nast.payroll.Payroll.entity.Attendance;
+<<<<<<< HEAD
 import np.edu.nast.payroll.Payroll.entity.LeaveBalance;
 import np.edu.nast.payroll.Payroll.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+=======
+import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
+import np.edu.nast.payroll.Payroll.repository.EmployeeLeaveRepository;
+import np.edu.nast.payroll.Payroll.repository.AttendanceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,6 +24,7 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class DashboardController {
 
+<<<<<<< HEAD
     @Autowired private EmployeeRepository employeeRepository;
     @Autowired private EmployeeLeaveRepository leaveRepository;
     @Autowired private AttendanceRepository attendanceRepository;
@@ -47,5 +55,37 @@ public class DashboardController {
     public List<Attendance> getRecentAttendance() {
         // Fixes: "symbol: method findAllByAttendanceDate"
         return attendanceRepository.findAllByAttendanceDate(LocalDate.now());
+=======
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private EmployeeLeaveRepository leaveRepository;
+
+    @Autowired
+    private AttendanceRepository attendanceRepository;
+
+    @GetMapping("/stats")
+    public Map<String, Object> getDashboardStats() {
+        Map<String, Object> stats = new HashMap<>();
+        long totalEmployees = employeeRepository.count();
+        long pendingLeaves = leaveRepository.countByStatus("PENDING");
+        long presentToday = attendanceRepository.countByAttendanceDate(LocalDate.now());
+
+        String attendancePercentage = totalEmployees > 0
+                ? (presentToday * 100 / totalEmployees) + "%"
+                : "0%";
+
+        stats.put("totalWorkforce", totalEmployees);
+        stats.put("leaveRequests", pendingLeaves);
+        stats.put("dailyAttendance", attendancePercentage);
+        return stats;
+    }
+
+    @GetMapping("/recent-attendance")
+    public List<Attendance> getRecentAttendance() {
+        return attendanceRepository.findAllByAttendanceDate(LocalDate.now());
+
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     }
 }

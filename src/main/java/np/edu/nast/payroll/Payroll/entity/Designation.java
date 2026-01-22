@@ -21,7 +21,11 @@ public class Designation {
 
     @Column(nullable = false)
     private String designationTitle;
+<<<<<<< HEAD
 
     @Column(nullable = false)
     private Double baseSalary;
 }
+=======
+}
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5

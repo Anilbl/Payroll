@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -24,6 +25,8 @@ dist-ssr
 *.sln
 *.sw?
 =======
+=======
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
@@ -57,4 +60,7 @@ build/
 
 ### VS Code ###
 .vscode/
+<<<<<<< HEAD
 >>>>>>> ef49ff3 (Initial commit)
+=======
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5

@@ -35,10 +35,17 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+<<<<<<< HEAD
         return NoOpPasswordEncoder.getInstance();
     }
 
 
+=======
+        // ⚠️ Reminder: Use BCryptPasswordEncoder for production environments
+        return NoOpPasswordEncoder.getInstance();
+    }
+
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -68,16 +75,22 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         /* ============================================================
+<<<<<<< HEAD
                            1. PUBLIC & PREFLIGHT ENDPOINTS (FIX FOR CORS ERRORS)
                            ============================================================ */
                         // Allow all OPTIONS requests (preflight) so the browser doesn't block PATCH/POST
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+=======
+                           1. PUBLIC ENDPOINTS
+                           ============================================================ */
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                         .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/api/users/forgot-password/**",
                                 "/api/users/reset-password/**").permitAll()
                         .requestMatchers("/api/dashboard/**").permitAll()
 
                         /* ============================================================
+<<<<<<< HEAD
                            2. ROLE & USER MANAGEMENT
                            ============================================================ */
                         .requestMatchers(HttpMethod.GET, "/api/roles/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
@@ -98,44 +111,87 @@ public class SecurityConfig {
                         .requestMatchers("/api/tax-slabs/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
                         /* ============================================================
                            4. SHARED MODULES (ADMIN, ACCOUNTANT, EMPLOYEE)
+=======
+                           2. LEAVE MANAGEMENT (FIXED: Added Employee Access)
+                           ============================================================ */
+                        // Allow employees to fetch types and their own balance
+                        .requestMatchers(HttpMethod.GET, "/api/leave-types/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_EMPLOYEE")
+                        .requestMatchers(HttpMethod.GET, "/api/leave-balance/employee/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_EMPLOYEE")
+
+                        // Allow employees to view their history and submit requests
+                        .requestMatchers("/api/employee-leaves/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_EMPLOYEE")
+
+                        /* ============================================================
+                           3. SHARED MODULES (ADMIN, ACCOUNTANT, EMPLOYEE)
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                            ============================================================ */
                         .requestMatchers("/api/attendance/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT", "ROLE_EMPLOYEE")
 
                         /* ============================================================
+<<<<<<< HEAD
                            5. ACCOUNTING & MANAGEMENT (ADMIN, ACCOUNTANT)
                            ============================================================ */
                         .requestMatchers("/api/payrolls/**", "/api/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
 
+=======
+                           4. ACCOUNTING & MANAGEMENT (ADMIN, ACCOUNTANT)
+                           ============================================================ */
+                        .requestMatchers("/api/payrolls/**", "/api/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
+
+                        // Read-only access for Accountants on Employees, Depts, and Designations
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                         .requestMatchers(HttpMethod.GET,
                                 "/api/employees/**",
                                 "/api/departments/**",
                                 "/api/designations/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
 
+<<<<<<< HEAD
+=======
+                        // Read-only access for Accountants on Salary Components
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                         .requestMatchers(HttpMethod.GET,
                                 "/api/salary-components/**",
                                 "/api/grade-salary-components/**",
                                 "/api/employee-salary-components/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT")
 
                         /* ============================================================
+<<<<<<< HEAD
                            6. ROLE-SPECIFIC PANELS
+=======
+                           5. ROLE-SPECIFIC PANELS
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                            ============================================================ */
                         .requestMatchers("/api/employee/**").hasAuthority("ROLE_EMPLOYEE")
                         .requestMatchers("/api/accountant/**").hasAuthority("ROLE_ACCOUNTANT")
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
                         /* ============================================================
+<<<<<<< HEAD
                            7. ADMIN ONLY (WRITE ACCESS & FALLBACK)
                            ============================================================ */
+=======
+                           6. ADMIN ONLY (WRITE ACCESS & FALLBACK)
+                           ============================================================ */
+                        // Any remaining POST/PUT/DELETE on core modules defaults to ADMIN
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                         .requestMatchers("/api/employees/**",
                                 "/api/departments/**",
                                 "/api/designations/**",
                                 "/api/salary-components/**").hasAuthority("ROLE_ADMIN")
 
+<<<<<<< HEAD
                         .requestMatchers("/api/**").hasAuthority("ROLE_ADMIN")
 
                         /* ============================================================
                            8. FINAL FALLBACK
+=======
+                        // Global catch-all for /api/** (Admins)
+                        .requestMatchers("/api/**").hasAuthority("ROLE_ADMIN")
+
+                        /* ============================================================
+                           7. FINAL FALLBACK
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
                            ============================================================ */
                         .anyRequest().authenticated()
                 )
@@ -152,12 +208,21 @@ public class SecurityConfig {
                 "http://localhost:3000"
         ));
         config.setAllowedMethods(Arrays.asList(
+<<<<<<< HEAD
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" // Added PATCH here
+=======
+                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
         ));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
+<<<<<<< HEAD
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+=======
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+>>>>>>> 3214be41b790e5d207ff8a4a5185d56a25676df5
         source.registerCorsConfiguration("/**", config);
         return source;
     }

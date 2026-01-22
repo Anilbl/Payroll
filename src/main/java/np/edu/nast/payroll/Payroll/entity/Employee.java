@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -11,6 +12,10 @@ import java.time.LocalDateTime;
 @Table(name = "employee")
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Employee {
@@ -23,6 +28,9 @@ public class Employee {
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     @JsonIgnore // 🔥 Prevents infinite JSON recursion (Fixes 400 Bad Request)
+    @OneToOne(fetch = FetchType.EAGER, optional = true)
+    @JoinColumn(name = "user_id", referencedColumnName = "userId", nullable = true)
+    @JsonIgnore // 🔥 CRITICAL FIX
     private User user;
 
     @Column(nullable = false)
@@ -40,7 +48,7 @@ public class Employee {
     @Column(nullable = false)
     private String maritalStatus;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "position_id", nullable = false)
     private Designation position;
 
@@ -64,6 +72,7 @@ public class Employee {
     private Department department;
 
     @Column(nullable = true)
+    @Column(nullable = false)
     private Boolean isActive;
 
     @Column(nullable = false, updatable = false)
@@ -77,6 +86,11 @@ public class Employee {
         this.createdAt = LocalDateTime.now();
         if (this.joiningDate == null) this.joiningDate = LocalDate.now();
         if (this.isActive == null) this.isActive = true;
+        if (this.maritalStatus == null) this.maritalStatus = "SINGLE";
+        if (this.employmentStatus == null) this.employmentStatus = "FULL_TIME";
+        if (this.basicSalary == null) this.basicSalary = 0.0;
+        if (this.allowances == null) this.allowances = 0.0;
+        if (this.deductions == null) this.deductions = 0.0;
     }
 
 }
