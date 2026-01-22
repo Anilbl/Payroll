@@ -84,11 +84,14 @@ public class SecurityConfig {
 
                         // Allow employees to view their history and submit requests
                         .requestMatchers("/api/employee-leaves/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_EMPLOYEE")
+                        .requestMatchers("/api/salary-analytics/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_EMPLOYEE")
+
 
                         /* ============================================================
                            3. SHARED MODULES (ADMIN, ACCOUNTANT, EMPLOYEE)
                            ============================================================ */
                         .requestMatchers("/api/attendance/**")
+
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_ACCOUNTANT", "ROLE_EMPLOYEE")
 
                         /* ============================================================

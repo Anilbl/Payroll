@@ -36,4 +36,9 @@ public class CustomUserDetailsService implements UserDetailsService {
                 Collections.singletonList(new SimpleGrantedAuthority(role))
         );
     }
+
+
+    public Integer getId() {
+        return 0;
+    }
 }

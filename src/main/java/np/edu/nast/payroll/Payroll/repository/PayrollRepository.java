@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
@@ -48,6 +49,13 @@ public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
 """)
     List<MonthlyPayrollDTO> monthlyPayroll(@Param("year") int year);
 
-
-
+    @Query("SELECT p FROM Payroll p WHERE p.employee.empId = :empId " +
+            "AND YEAR(p.payDate) = :year " +
+            "AND MONTH(p.payDate) = :month")
+    Optional<Payroll> findByEmployeeEmpIdAndMonth(
+            @Param("empId") Integer empId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
 }
+

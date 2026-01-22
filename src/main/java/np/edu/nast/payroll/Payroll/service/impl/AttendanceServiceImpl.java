@@ -31,7 +31,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
 
         // Check if employee exists
-        Employee employee = employeeRepository.findById(attendance.getEmployee().getEmpId())
+        Employee employee = employeeRepository.findByUser_UserId(attendance.getEmployee().getEmpId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with ID: " + attendance.getEmployee().getEmpId()));
 
