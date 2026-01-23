@@ -10,22 +10,49 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
-// This annotation allows the React app on port 5173 to talk to Spring Boot
 @CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
     @Autowired
     private UserService userService;
 
+    // This handles GET http://localhost:8080/api/users/14
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable Integer id) {
+        try {
+            User user = userService.getById(id);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User user) {
+        try {
+            return ResponseEntity.ok(userService.update(id, user));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @GetMapping
+    public List<User> getAllUsers() {
+        return userService.getAll();
+    }
+
+    @PostMapping
+    public ResponseEntity<User> createUser(@RequestBody User user) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(user));
+    }
+
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestParam("email") String email) {
         try {
             userService.initiatePasswordReset(email);
             return ResponseEntity.ok("OTP sent to your email.");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error");
         }
     }
 
@@ -37,10 +64,5 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
-    }
-
-    @GetMapping
-    public List<User> getAllUsers() {
-        return userService.getAll();
     }
 }

@@ -24,7 +24,7 @@ public class Employee {
 
     @OneToOne(fetch = FetchType.EAGER, optional = true)
     @JoinColumn(name = "user_id", referencedColumnName = "userId", nullable = true)
-    @JsonIgnore // 🔥 CRITICAL FIX
+    @JsonIgnore // Prevents infinite recursion with the User entity
     private User user;
 
     @Column(nullable = false)
@@ -44,6 +44,7 @@ public class Employee {
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "position_id", nullable = false)
+    @JsonIgnoreProperties("employees")
     private Designation position;
 
     @Column(nullable = false)
@@ -61,14 +62,9 @@ public class Employee {
     @Column(nullable = false)
     private Double basicSalary;
 
-    @Column(nullable = false)
-    private Double allowances;
-
-    @Column(nullable = false)
-    private Double deductions;
-
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "dept_id", nullable = false)
+    @JsonIgnoreProperties("employees")
     private Department department;
 
     @Column(nullable = false)
@@ -84,7 +80,5 @@ public class Employee {
         if (this.maritalStatus == null) this.maritalStatus = "SINGLE";
         if (this.employmentStatus == null) this.employmentStatus = "FULL_TIME";
         if (this.basicSalary == null) this.basicSalary = 0.0;
-        if (this.allowances == null) this.allowances = 0.0;
-        if (this.deductions == null) this.deductions = 0.0;
     }
 }

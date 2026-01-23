@@ -24,7 +24,7 @@ public class User {
     private String username;
 
     @Column(nullable = false)
-    @JsonIgnore // 🔐 NEVER expose passwords
+    @JsonIgnore
     private String password;
 
     @Column(nullable = false, unique = true)
@@ -32,10 +32,15 @@ public class User {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
-    @JsonIgnore // 🔥 FIX: prevents recursion & security leak
+    @JsonIgnoreProperties("users")
     private Role role;
 
     private String status;
+
+    // CRITICAL: This mapping MUST be ignored to prevent 500 Error
+    @OneToOne(mappedBy = "user")
+    @JsonIgnore
+    private Employee employee;;
 
     @Column(name = "reset_token")
     @JsonIgnore

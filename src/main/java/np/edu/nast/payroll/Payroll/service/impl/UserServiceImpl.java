@@ -5,8 +5,6 @@ import np.edu.nast.payroll.Payroll.entity.User;
 import np.edu.nast.payroll.Payroll.repository.UserRepository;
 import np.edu.nast.payroll.Payroll.service.EmailService;
 import np.edu.nast.payroll.Payroll.service.UserService;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,13 +18,8 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    // ===================================================
-    // Business logic methods only (no UserDetailsService)
-    // ===================================================
-
     @Override
     public User create(User user) {
-        // Encode password using the configured PasswordEncoder
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
@@ -34,6 +27,32 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> getAll() {
         return userRepository.findAll();
+    }
+
+    @Override
+    public User getById(Integer id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    }
+
+    @Override
+    public User update(Integer id, User userDetails) {
+        User existingUser = getById(id);
+
+        existingUser.setUsername(userDetails.getUsername());
+        existingUser.setEmail(userDetails.getEmail());
+        existingUser.setStatus(userDetails.getStatus());
+
+        if (userDetails.getRole() != null) {
+            existingUser.setRole(userDetails.getRole());
+        }
+
+        // Only update password if a new one is provided in the form
+        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(userDetails.getPassword()));
+        }
+
+        return userRepository.save(existingUser);
     }
 
     @Override
@@ -66,13 +85,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendOtpToAllUsers() {
-        // Implement as needed
-    }
+    public void sendOtpToAllUsers() {}
 
     @Override
     public User setupDefaultAccount(Integer empId) {
         return new User();
     }
-
 }

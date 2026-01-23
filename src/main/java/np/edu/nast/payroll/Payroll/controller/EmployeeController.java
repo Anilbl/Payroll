@@ -7,10 +7,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/employees")
-@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_ACCOUNTANT')")
+// Ensure your SecurityConfig allows these authorities
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_ACCOUNTANT', 'ADMIN', 'ACCOUNTANT')")
 public class EmployeeController {
 
     private final EmployeeService svc;
@@ -46,7 +48,6 @@ public class EmployeeController {
         svc.delete(id);
     }
 
-    // Active employee stats endpoint
     @GetMapping("/stats/active-per-month")
     public Map<Integer, Long> getActiveEmployeeStats() {
         return svc.getActiveEmployeeStats();

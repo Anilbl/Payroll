@@ -34,73 +34,38 @@ public class EmployeeServiceImpl implements EmployeeService {
        ========================= */
     @Override
     public Employee create(Employee employee) {
-
         // EMAIL UNIQUENESS CHECK
         if (employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already exists");
+            throw new EmailAlreadyExistsException("Email already exists: " + employee.getEmail());
         }
 
-        // FK NULL CHECK
-        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null) {
-            throw new IllegalArgumentException("Department ID is required");
-        }
-        if (employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
-            throw new IllegalArgumentException("Designation ID is required");
-        }
-
-        // FK EXISTENCE CHECK
-        Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException(
-                        "Department not found with id: " + employee.getDepartment().getDeptId()
-                ));
-
-        Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException(
-                        "Designation not found with id: " + employee.getPosition().getDesignationId()
-                ));
-
-        employee.setDepartment(department);
-        employee.setPosition(designation);
+        // Validate and attach managed entities for Department and Designation
+        validateAndAttachForeignKeys(employee);
 
         return employeeRepo.save(employee);
     }
 
     /* =========================
-       UPDATE EMPLOYEE
+       UPDATE EMPLOYEE (Full Logic)
        ========================= */
     @Override
     public Employee update(Integer id, Employee employee) {
-
+        // 1. Check if employee exists
         Employee existing = employeeRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
 
-        // EMAIL UNIQUENESS CHECK (ALLOW SAME EMPLOYEE)
+        // 2. Email uniqueness check (Allow if email belongs to the same employee being updated)
         if (employee.getEmail() != null &&
-                !employee.getEmail().equals(existing.getEmail()) &&
+                !employee.getEmail().equalsIgnoreCase(existing.getEmail()) &&
                 employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already exists");
+            throw new EmailAlreadyExistsException("Email already exists: " + employee.getEmail());
         }
 
-        // FK NULL CHECK
-        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null ||
-                employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
-            throw new IllegalArgumentException("Department and Designation IDs are required");
-        }
+        // 3. Validate and fetch managed objects for the Foreign Keys
+        // This prevents the 500 error when the frontend sends only IDs
+        validateAndAttachForeignKeys(employee);
 
-        // FK EXISTENCE CHECK
-        Department department = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException(
-                        "Department not found with id: " + employee.getDepartment().getDeptId()
-                ));
-
-        Designation designation = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException(
-                        "Designation not found with id: " + employee.getPosition().getDesignationId()
-                ));
-
-        // UPDATE VALUES
-        existing.setDepartment(department);
-        existing.setPosition(designation);
+        // 4. Map values from the request to the existing managed entity
         existing.setFirstName(employee.getFirstName());
         existing.setLastName(employee.getLastName());
         existing.setContact(employee.getContact());
@@ -111,10 +76,16 @@ public class EmployeeServiceImpl implements EmployeeService {
         existing.setAddress(employee.getAddress());
         existing.setIsActive(employee.getIsActive());
 
-        // EMAIL = SOURCE OF TRUTH
+        // Ensure salary fields are preserved or updated
+        existing.setBasicSalary(employee.getBasicSalary());
+
+        // Update the actual relationship objects
+        existing.setDepartment(employee.getDepartment());
+        existing.setPosition(employee.getPosition());
+
+        // 5. Synchronize Email with User account if it exists
         if (employee.getEmail() != null) {
             existing.setEmail(employee.getEmail());
-
             if (existing.getUser() != null) {
                 existing.getUser().setEmail(employee.getEmail());
             }
@@ -124,12 +95,39 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     /* =========================
+       PRIVATE HELPER: VALIDATE KEYS
+       ========================= */
+    private void validateAndAttachForeignKeys(Employee employee) {
+        // Check for Department
+        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null) {
+            throw new IllegalArgumentException("Department ID is required");
+        }
+
+        // Check for Position (Designation)
+        // Frontend might send this as positionId inside a 'position' object
+        if (employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
+            throw new IllegalArgumentException("Designation (Position) ID is required");
+        }
+
+        // Fetch managed instances from DB to avoid "Transient Instance" or "500 Internal" errors
+        Department dept = departmentRepo.findById(employee.getDepartment().getDeptId())
+                .orElseThrow(() -> new RuntimeException("Department not found with ID: " + employee.getDepartment().getDeptId()));
+
+        Designation desig = designationRepo.findById(employee.getPosition().getDesignationId())
+                .orElseThrow(() -> new RuntimeException("Designation not found with ID: " + employee.getPosition().getDesignationId()));
+
+        // Re-attach the real DB objects to the employee object
+        employee.setDepartment(dept);
+        employee.setPosition(desig);
+    }
+
+    /* =========================
        DELETE EMPLOYEE
        ========================= */
     @Override
     public void delete(Integer id) {
         Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         employeeRepo.delete(employee);
     }
 
@@ -151,7 +149,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     /* =========================
-       ACTIVE EMPLOYEE STATS
+       STATS MODULE (Used by Dashboard)
        ========================= */
     @Override
     public Map<Integer, Long> getActiveEmployeeStats() {

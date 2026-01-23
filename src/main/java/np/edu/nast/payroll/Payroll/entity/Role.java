@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,8 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+// Fixes potential 500 errors related to Hibernate lazy loading proxies
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Role {
 
     @Id
