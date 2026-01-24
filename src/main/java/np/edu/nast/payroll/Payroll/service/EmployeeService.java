@@ -8,9 +8,14 @@ public interface EmployeeService {
     Employee create(Employee employee);
     Employee update(Integer id, Employee employee);
     void delete(Integer id);
-    Employee getById(Integer id);
-    List<Employee> getAll();
 
-    // New method for stats
+    Employee getById(Integer id);
+    Employee getByEmail(String email);
+
+    // NEW FEATURE: Concept change to User ID
+    Employee getByUserId(Integer userId);
+
+    List<Employee> getAll();
     Map<Integer, Long> getActiveEmployeeStats();
+    Map<String, Object> getDashboardStats(Integer id);
 }

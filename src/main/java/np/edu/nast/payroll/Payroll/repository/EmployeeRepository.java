@@ -6,30 +6,57 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
 
-    @Query("SELECT FUNCTION('MONTH', e.joiningDate) as month, COUNT(e) " +
-            "FROM Employee e " +
-            "WHERE e.isActive = true " +
-            "GROUP BY FUNCTION('MONTH', e.joiningDate)")
+    /**
+     * Analytical query for employee growth chart.
+     */
+    @Query("""
+        SELECT FUNCTION('MONTH', e.joiningDate), COUNT(e)
+        FROM Employee e
+        WHERE e.isActive = true
+        GROUP BY FUNCTION('MONTH', e.joiningDate)
+    """)
     List<Object[]> countActiveEmployeesPerMonth();
 
+    /**
+     * Basic exists check for validation.
+     */
     boolean existsByEmail(String email);
 
-    // NEW: Search by ID or Name (Case-Insensitive)
-    @Query("SELECT e FROM Employee e WHERE " +
-            "CAST(e.empId AS string) = :query OR " +
-            "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-            "LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Employee> searchByIdOrName(@Param("query") String query);
+    /**
+     * Standard find by email used in AuthServiceImpl to link User to Employee.
+     */
     Optional<Employee> findByEmail(String email);
 
-    Optional<Employee> findByUser_UserId(Integer userId);
+    /**
+     * Look up employee via the nested User entity's email.
+     */
+    Optional<Employee> findByUser_Email(String email);
+
+    /**
+     * Explicit Query to find employee by User ID.
+     */
+    @Query("SELECT e FROM Employee e WHERE e.user.userId = :userId")
+    Optional<Employee> findByUser_UserId(@Param("userId") Integer userId);
+
+    /**
+     * Look up employee via the nested User entity's username.
+     */
     Optional<Employee> findByUser_Username(String username);
 
+    /**
+     * Search functionality for the Admin Employee list.
+     */
+    @Query("""
+        SELECT e FROM Employee e
+        WHERE CAST(e.empId AS string) = :query
+           OR LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+           OR LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
+    """)
+    List<Employee> searchByIdOrName(@Param("query") String query);
 }

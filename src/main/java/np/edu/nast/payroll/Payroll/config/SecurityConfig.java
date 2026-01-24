@@ -60,26 +60,28 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
                         /* 1. PUBLIC */
-                        .requestMatchers("/api/auth/**", "/error", "/api/dashboard/**").permitAll()
-
-                        /* 2. THE ABSOLUTE 403 FIX: Permit all authenticated users to GET metadata */
-                        // This ensures /api/departments and /api/employees/{id} are ALWAYS accessible if logged in
+                        .requestMatchers("/api/auth/**", "/error").permitAll()
+// Inside SecurityConfig.java .authorizeHttpRequests block
+                                .requestMatchers("/api/employee/dashboard/**").hasAnyAuthority("ROLE_USER", "ROLE_EMPLOYEE", "ROLE_ADMIN", "ADMIN", "EMPLOYEE")
+                        /* 2. METADATA & PROFILE */
                         .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/employees/**", "/api/users/**").authenticated()
 
-                        /* 3. LEAVE & ANALYTICS */
+                        /* 3. ATTENDANCE (Specific Employee Allowances) */
+                        // Allowing employees to POST (Check-in) and PUT (Check-out)
+                        .requestMatchers(HttpMethod.POST, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
+                        .requestMatchers(HttpMethod.PUT, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
+                        .requestMatchers(HttpMethod.GET, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT", "ROLE_EMPLOYEE", "EMPLOYEE")
+
+                        /* 4. LEAVE & ANALYTICS */
                         .requestMatchers(HttpMethod.GET, "/api/leave-types/**", "/api/leave-balance/**").permitAll()
                         .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
-
-                        /* 4. ATTENDANCE */
-                        .requestMatchers("/api/attendance/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT", "ROLE_EMPLOYEE", "EMPLOYEE")
 
                         /* 5. PAYROLL & REPORTS */
                         .requestMatchers("/api/payrolls/**", "/api/reports/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
 
-                        /* 6. ADMIN WRITE ACCESS (Explicitly allowing IDs) */
+                        /* 6. GLOBAL ADMIN WRITE PROTECTION */
                         .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
@@ -96,9 +98,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+
+        // UPDATE: Added "PATCH" to the list of allowed methods
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        // UPDATE: Added "Origin" and "X-Requested-With" to ensure all browsers are happy
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

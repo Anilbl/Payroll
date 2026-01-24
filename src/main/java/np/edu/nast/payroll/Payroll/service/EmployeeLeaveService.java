@@ -11,6 +11,6 @@ public interface EmployeeLeaveService {
     void deleteLeave(Integer id);
     EmployeeLeave updateLeave(Integer id, EmployeeLeave leave);
 
-    // UPDATED: Added adminId to capture who is performing the action
-    EmployeeLeave updateLeaveStatus(Integer id, String status, Integer adminId);
+    // UPDATED: Added rejectionReason parameter
+    EmployeeLeave updateLeaveStatus(Integer id, String status, Integer adminId, String rejectionReason);
 }

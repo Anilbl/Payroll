@@ -19,6 +19,7 @@ public class EmployeeLeaveController {
 
     @PostMapping
     public EmployeeLeave requestLeave(@RequestBody EmployeeLeave leave) {
+        // The service now handles calculation and linking
         return employeeLeaveService.requestLeave(leave);
     }
 
@@ -27,15 +28,20 @@ public class EmployeeLeaveController {
         return employeeLeaveService.getAllLeaves();
     }
 
+    @GetMapping("/employee/{empId}")
+    public List<EmployeeLeave> getByEmployee(@PathVariable Integer empId) {
+        return employeeLeaveService.getLeavesByEmployee(empId);
+    }
+
     @PatchMapping("/{id}/status")
-    public EmployeeLeave updateStatus(@PathVariable Integer id, @RequestBody Map<String, Object> statusUpdate) {
-        String status = (String) statusUpdate.get("status");
+    public EmployeeLeave updateStatus(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+        String status = (String) payload.get("status");
+        String reason = (String) payload.get("rejectionReason");
 
-        // Extract adminId from JSON and convert to Integer to match Service requirements
-        Object adminIdObj = statusUpdate.get("adminId");
-        Integer adminId = (adminIdObj != null) ? Integer.parseInt(adminIdObj.toString()) : 1;
+        Object rawId = payload.get("adminId");
+        Integer adminId = (rawId != null) ? Integer.parseInt(rawId.toString()) : 1;
 
-        // Passed 3 arguments to satisfy the service interface
-        return employeeLeaveService.updateLeaveStatus(id, status, adminId);
+        // ✅ This call now triggers the balance deduction/refund logic in the ServiceImpl
+        return employeeLeaveService.updateLeaveStatus(id, status, adminId, reason);
     }
 }

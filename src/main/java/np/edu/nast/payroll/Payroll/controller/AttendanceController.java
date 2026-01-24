@@ -7,7 +7,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/attendance")
-@CrossOrigin(origins = "http://localhost:5173") // Matches your frontend port
+@CrossOrigin(origins = "http://localhost:5173")
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
@@ -21,15 +21,21 @@ public class AttendanceController {
         return attendanceService.createAttendance(attendance);
     }
 
+    // Specific endpoint for Employee Panel Check-out
+    @PutMapping("/checkout/{id}")
+    public Attendance checkOut(@PathVariable Integer id) {
+        Attendance attendance = new Attendance();
+        attendance.setCheckOutTime(java.time.LocalDateTime.now());
+        return attendanceService.updateAttendance(id, attendance);
+    }
+
     @PutMapping("/{id}")
-    public Attendance update(@PathVariable Long id, @RequestBody Attendance attendance) {
-        // Ensuring ID conversion to match your service's expected type
-        return attendanceService.updateAttendance(id.intValue(), attendance);
+    public Attendance update(@PathVariable Integer id, @RequestBody Attendance attendance) {
+        return attendanceService.updateAttendance(id, attendance);
     }
 
     @GetMapping("/employee/{empId}")
     public List<Attendance> getByEmployee(@PathVariable Integer empId) {
         return attendanceService.getAttendanceByEmployee(empId);
     }
-
 }

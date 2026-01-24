@@ -53,6 +53,9 @@ public class EmployeeLeave {
 
     @Column(name = "approved_at", nullable = true)
     private LocalDateTime approvedAt;
+    // ... other imports
+    @Column(name = "rejection_reason", nullable = true)
+    private String rejectionReason; // NEW FIELD for rejection notes
 
     // --- MERGED CALLBACK METHOD ---
     @PrePersist

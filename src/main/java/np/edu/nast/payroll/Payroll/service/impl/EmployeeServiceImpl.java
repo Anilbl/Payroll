@@ -1,18 +1,13 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
-import np.edu.nast.payroll.Payroll.entity.Employee;
-import np.edu.nast.payroll.Payroll.entity.Department;
-import np.edu.nast.payroll.Payroll.entity.Designation;
-import np.edu.nast.payroll.Payroll.entity.User;
-import np.edu.nast.payroll.Payroll.exception.EmailAlreadyExistsException;
-import np.edu.nast.payroll.Payroll.repository.EmployeeRepository;
-import np.edu.nast.payroll.Payroll.repository.DepartmentRepository;
-import np.edu.nast.payroll.Payroll.repository.DesignationRepository;
-import np.edu.nast.payroll.Payroll.repository.UserRepository;
+import np.edu.nast.payroll.Payroll.entity.*;
+import np.edu.nast.payroll.Payroll.reportdto.AttendanceSummaryDTO;
+import np.edu.nast.payroll.Payroll.repository.*;
 import np.edu.nast.payroll.Payroll.service.EmployeeService;
+import np.edu.nast.payroll.Payroll.exception.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -22,77 +17,90 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final EmployeeRepository employeeRepo;
     private final DepartmentRepository departmentRepo;
     private final DesignationRepository designationRepo;
-    private final UserRepository userRepo; // NEW DEPENDENCY
+    private final UserRepository userRepo;
+    private final AttendanceRepository attendanceRepo;
 
     public EmployeeServiceImpl(EmployeeRepository employeeRepo,
                                DepartmentRepository departmentRepo,
                                DesignationRepository designationRepo,
-                               UserRepository userRepo) {
+                               UserRepository userRepo,
+                               AttendanceRepository attendanceRepo) {
         this.employeeRepo = employeeRepo;
         this.departmentRepo = departmentRepo;
         this.designationRepo = designationRepo;
         this.userRepo = userRepo;
+        this.attendanceRepo = attendanceRepo;
     }
 
-    /* =========================
-       CREATE EMPLOYEE
-       ========================= */
+    // UPDATED: Uses custom ResourceNotFoundException instead of ResponseStatusException
     @Override
-    public Employee create(Employee employee) {
-        // 1. EMAIL UNIQUENESS CHECK
-        if (employeeRepo.existsByEmail(employee.getEmail())) {
-            throw new EmailAlreadyExistsException("Email already exists: " + employee.getEmail());
+    public Employee getByUserId(Integer userId) {
+        // Check if user exists first using your custom exception
+        userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User account not found with ID: " + userId));
+
+        // Find linked employee
+        return employeeRepo.findByUser_UserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No Employee profile linked to User ID: " + userId));
+    }
+
+    @Override
+    public Map<String, Object> getDashboardStats(Integer id) {
+        Employee emp = employeeRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+
+        LocalDate now = LocalDate.now();
+        List<Object[]> summaryResult = attendanceRepo.summary(now.getYear(), now.getMonthValue());
+
+        long present = 0, absent = 0, leave = 0;
+        if (!summaryResult.isEmpty() && summaryResult.get(0) != null) {
+            Object[] row = summaryResult.get(0);
+            present = row[0] != null ? ((Number) row[0]).longValue() : 0;
+            absent  = row[1] != null ? ((Number) row[1]).longValue() : 0;
+            leave   = row[2] != null ? ((Number) row[2]).longValue() : 0;
         }
 
-        // 2. NEW LOGIC: MANDATORY USER CHECK
-        // Without a user account with this email, employee cannot be registered
-        User associatedUser = userRepo.findByEmailIgnoreCase(employee.getEmail())
-                .orElseThrow(() -> new RuntimeException("No user account found with email: " + employee.getEmail() +
-                        ". Please create the User account first."));
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("lastSalary", emp.getBasicSalary() != null ? emp.getBasicSalary() : 0);
+        stats.put("remainingLeaves", 12);
+        stats.put("attendanceSummary", new AttendanceSummaryDTO(present, absent, leave));
+        return stats;
+    }
 
-        // 3. Prevent duplicate linkage (One User -> One Employee)
+    @Override
+    public Employee getByEmail(String email) {
+        return employeeRepo.findByUser_Email(email)
+                .or(() -> employeeRepo.findByEmail(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with email: " + email));
+    }
+
+    @Override
+    public Employee create(Employee employee) {
+        if (employeeRepo.existsByEmail(employee.getEmail())) {
+            throw new EmailAlreadyExistsException("Email exists: " + employee.getEmail());
+        }
+        User associatedUser = userRepo.findByEmailIgnoreCase(employee.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("No user found with email: " + employee.getEmail()));
+
         if (employeeRepo.findByUser_UserId(associatedUser.getUserId()).isPresent()) {
             throw new RuntimeException("This user is already registered as an employee.");
         }
-
-        // 4. Attach User as Foreign Key
         employee.setUser(associatedUser);
-
-        // Validate and attach managed entities for Department and Designation
         validateAndAttachForeignKeys(employee);
-
         return employeeRepo.save(employee);
     }
 
-    /* =========================
-       UPDATE EMPLOYEE (Full Logic)
-       ========================= */
     @Override
     public Employee update(Integer id, Employee employee) {
-        // 1. Check if employee exists
-        Employee existing = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-
-        // 2. Email uniqueness check
-        if (employee.getEmail() != null &&
-                !employee.getEmail().equalsIgnoreCase(existing.getEmail())) {
-
-            if(employeeRepo.existsByEmail(employee.getEmail())) {
-                throw new EmailAlreadyExistsException("Email already exists: " + employee.getEmail());
-            }
-
-            // If updating email, check if the NEW email exists in the User table
-            User newUserAccount = userRepo.findByEmailIgnoreCase(employee.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Cannot update email: No User account found for " + employee.getEmail()));
-
-            existing.setUser(newUserAccount);
+        Employee existing = employeeRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        if (employee.getEmail() != null && !employee.getEmail().equalsIgnoreCase(existing.getEmail())) {
+            if (employeeRepo.existsByEmail(employee.getEmail())) throw new EmailAlreadyExistsException("Email exists");
+            User newUser = userRepo.findByEmailIgnoreCase(employee.getEmail())
+                    .orElseThrow(() -> new ResourceNotFoundException("No User found"));
+            existing.setUser(newUser);
             existing.setEmail(employee.getEmail());
         }
-
-        // 3. Validate and fetch managed objects for the Foreign Keys
         validateAndAttachForeignKeys(employee);
-
-        // 4. Map values from the request to the existing managed entity (PREVIOUS LOGIC PRESERVED)
         existing.setFirstName(employee.getFirstName());
         existing.setLastName(employee.getLastName());
         existing.setContact(employee.getContact());
@@ -103,75 +111,30 @@ public class EmployeeServiceImpl implements EmployeeService {
         existing.setAddress(employee.getAddress());
         existing.setIsActive(employee.getIsActive());
         existing.setBasicSalary(employee.getBasicSalary());
-
-        // Update the actual relationship objects
         existing.setDepartment(employee.getDepartment());
         existing.setPosition(employee.getPosition());
-
-        // 5. Synchronize Email with User account if it exists (PREVIOUS LOGIC PRESERVED)
-        if (existing.getEmail() != null && existing.getUser() != null) {
-            existing.getUser().setEmail(existing.getEmail());
-        }
-
+        if (existing.getUser() != null) existing.getUser().setEmail(existing.getEmail());
         return employeeRepo.save(existing);
     }
 
-    /* =========================
-       PRIVATE HELPER: VALIDATE KEYS
-       ========================= */
     private void validateAndAttachForeignKeys(Employee employee) {
-        // Check for Department
-        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null) {
-            throw new IllegalArgumentException("Department ID is required");
-        }
-
-        // Check for Position (Designation)
-        if (employee.getPosition() == null || employee.getPosition().getDesignationId() == null) {
-            throw new IllegalArgumentException("Designation (Position) ID is required");
-        }
-
-        // Fetch managed instances
-        Department dept = departmentRepo.findById(employee.getDepartment().getDeptId())
-                .orElseThrow(() -> new RuntimeException("Department not found with ID: " + employee.getDepartment().getDeptId()));
-
-        Designation desig = designationRepo.findById(employee.getPosition().getDesignationId())
-                .orElseThrow(() -> new RuntimeException("Designation not found with ID: " + employee.getPosition().getDesignationId()));
-
-        // Re-attach
+        if (employee.getDepartment() == null || employee.getDepartment().getDeptId() == null)
+            throw new IllegalArgumentException("Department ID required");
+        if (employee.getPosition() == null || employee.getPosition().getDesignationId() == null)
+            throw new IllegalArgumentException("Designation ID required");
+        Department dept = departmentRepo.findById(employee.getDepartment().getDeptId()).orElseThrow(() -> new ResourceNotFoundException("Dept not found"));
+        Designation desig = designationRepo.findById(employee.getPosition().getDesignationId()).orElseThrow(() -> new ResourceNotFoundException("Desig not found"));
         employee.setDepartment(dept);
         employee.setPosition(desig);
     }
 
-    /* =========================
-       DELETE EMPLOYEE
-       ========================= */
     @Override
-    public void delete(Integer id) {
-        Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
-        employeeRepo.delete(employee);
-    }
-
-    /* =========================
-       GET EMPLOYEE BY ID
-       ========================= */
+    public void delete(Integer id) { employeeRepo.deleteById(id); }
     @Override
-    public Employee getById(Integer id) {
-        return employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-    }
-
-    /* =========================
-       GET ALL EMPLOYEES
-       ========================= */
+    public Employee getById(Integer id) { return employeeRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found")); }
     @Override
-    public List<Employee> getAll() {
-        return employeeRepo.findAll();
-    }
+    public List<Employee> getAll() { return employeeRepo.findAll(); }
 
-    /* =========================
-       STATS MODULE (Used by Dashboard)
-       ========================= */
     @Override
     public Map<Integer, Long> getActiveEmployeeStats() {
         List<Object[]> result = employeeRepo.countActiveEmployeesPerMonth();

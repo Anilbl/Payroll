@@ -30,6 +30,7 @@ public class Attendance {
 
     private Double inGpsLat;
     private Double inGpsLong;
+    private String workLocation; // Matches your frontend payload
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate attendanceDate;
