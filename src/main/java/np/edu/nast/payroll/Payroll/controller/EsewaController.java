@@ -155,12 +155,18 @@ public class EsewaController {
             JsonNode response = new ObjectMapper().readTree(decodedString);
             String transactionUuid = response.get("transaction_uuid").asText();
 
-            // Extract ID and remove the pending record to keep DB clean
             Integer payrollId = Integer.parseInt(transactionUuid.split("-")[2]);
-            payrollService.rollbackPayroll(payrollId);
+
+            // Check if payroll exists before attempting delete
+            Payroll payroll = payrollService.getPayrollById(payrollId);
+            if (payroll != null) {
+                // This will now work because of CascadeType.ALL in the Entity
+                payrollService.rollbackPayroll(payrollId);
+            }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // Log the error but still redirect the user
+            System.err.println("Rollback failed during failure callback: " + e.getMessage());
         }
         return "redirect:http://localhost:5173/admin/payroll?status=failed";
     }
