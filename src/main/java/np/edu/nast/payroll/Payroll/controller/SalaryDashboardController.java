@@ -1,48 +1,87 @@
 package np.edu.nast.payroll.Payroll.controller;
 
 import np.edu.nast.payroll.Payroll.dto.auth.SalarySummaryDTO;
-import np.edu.nast.payroll.Payroll.entity.Payroll;
-import np.edu.nast.payroll.Payroll.service.PayrollService;
-import org.springframework.beans.factory.annotation.Autowired;
+import np.edu.nast.payroll.Payroll.dto.auth.CommandCenterDTO;
+import np.edu.nast.payroll.Payroll.entity.SalaryComponent;
+import np.edu.nast.payroll.Payroll.entity.Department;
+import np.edu.nast.payroll.Payroll.service.SalaryComponentService;
+import np.edu.nast.payroll.Payroll.service.DepartmentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/payrolls") // Matches frontend: api.get('/payrolls/summary')
+@RequestMapping("/api/salary-summary")
 @CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor // Modern injection
 public class SalaryDashboardController {
 
-    @Autowired
-    private PayrollService payrollService;
+    private final SalaryComponentService componentService;
+    private final DepartmentService departmentService;
 
-    @GetMapping("/summary")
+    @GetMapping
     public SalarySummaryDTO getSummary() {
-        List<Payroll> allPayrolls = payrollService.getAll();
+        List<SalaryComponent> components = componentService.getAll();
+        List<Department> departments = departmentService.getAll();
 
         SalarySummaryDTO dto = new SalarySummaryDTO();
         dto.departments = new ArrayList<>();
 
-        if (allPayrolls == null || allPayrolls.isEmpty()) return dto;
+        double totalGross = 0;
+        double totalDeductions = 0;
 
-        // Calculate Totals
-        dto.totalGross = allPayrolls.stream().mapToDouble(p -> p.getGrossSalary() != null ? p.getGrossSalary() : 0.0).sum();
-        dto.totalDeductions = allPayrolls.stream().mapToDouble(p -> p.getTotalDeductions() != null ? p.getTotalDeductions() : 0.0).sum();
-        dto.totalNet = allPayrolls.stream().mapToDouble(p -> p.getNetSalary() != null ? p.getNetSalary() : 0.0).sum();
+        for (Department dept : departments) {
+            // Logic: Components describe which department they belong to in the 'description'
+            // and we filter 'Basic Salary' as Gross and 'Income Tax' as Deduction
+            double deptGross = components.stream()
+                    .filter(c -> String.valueOf(dept.getDeptId()).equals(c.getDescription()) &&
+                            c.getComponentName().equalsIgnoreCase("Basic Salary"))
+                    .mapToDouble(SalaryComponent::getDefaultValue).sum();
 
-        // Group by Department
-        Map<String, List<Payroll>> groupedByDept = allPayrolls.stream()
-                .filter(p -> p.getEmployee() != null && p.getEmployee().getDepartment() != null)
-                .collect(Collectors.groupingBy(p -> p.getEmployee().getDepartment().getDeptName()));
+            double deptTax = components.stream()
+                    .filter(c -> String.valueOf(dept.getDeptId()).equals(c.getDescription()) &&
+                            c.getComponentName().equalsIgnoreCase("Income Tax"))
+                    .mapToDouble(SalaryComponent::getDefaultValue).sum();
 
-        groupedByDept.forEach((name, list) -> {
-            double net = list.stream().mapToDouble(p -> p.getNetSalary() != null ? p.getNetSalary() : 0.0).sum();
-            double tax = list.stream().mapToDouble(p -> p.getTotalTax() != null ? p.getTotalTax() : 0.0).sum();
-            dto.departments.add(new SalarySummaryDTO.DeptBreakdown(name, net, tax));
-        });
+            if (deptGross > 0 || deptTax > 0) {
+                totalGross += deptGross;
+                totalDeductions += deptTax;
+                dto.departments.add(new SalarySummaryDTO.DeptBreakdown(
+                        dept.getDeptName(),
+                        deptGross - deptTax, // Net
+                        deptTax
+                ));
+            }
+        }
+
+        dto.totalGross = totalGross;
+        dto.totalDeductions = totalDeductions;
+        dto.totalNet = totalGross - totalDeductions;
+
+        return dto;
+    }
+
+    @GetMapping("/command-center")
+    public CommandCenterDTO getCommandCenterStats() {
+        List<SalaryComponent> components = componentService.getAll();
+        CommandCenterDTO dto = new CommandCenterDTO();
+
+        // Total Payroll is the sum of all "FIXED" salary components
+        double totalPayroll = components.stream()
+                .filter(c -> "FIXED".equalsIgnoreCase(c.getCalculationMethod()))
+                .mapToDouble(SalaryComponent::getDefaultValue).sum();
+
+        // Compliance based on "Required" components
+        long requiredCount = components.stream()
+                .filter(c -> c.isRequired() != null && c.isRequired())
+                .count();
+
+        dto.setMonthlyPayrollTotal(totalPayroll);
+        dto.setPayrollStatus("Active");
+        dto.setCompliancePercentage(100);
+        dto.setPendingVerifications((int) requiredCount);
 
         return dto;
     }
