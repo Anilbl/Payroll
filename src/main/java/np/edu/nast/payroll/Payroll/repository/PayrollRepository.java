@@ -37,4 +37,14 @@ public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
 
     @Query("SELECT p FROM Payroll p WHERE p.employee.empId = :empId AND YEAR(p.payDate) = :year AND MONTH(p.payDate) = :month")
     Optional<Payroll> findByEmployeeEmpIdAndMonth(@Param("empId") Integer empId, @Param("year") int year, @Param("month") int month);
+
+    @Query("SELECT p FROM Payroll p WHERE p.employee.empId = :empId " +
+            "AND p.payPeriodStart = :startDate AND p.payPeriodEnd = :endDate " +
+            "AND p.status != 'VOIDED'")
+    Optional<Payroll> findByEmployeeAndPeriod(
+            @Param("empId") Integer empId,
+            @Param("startDate") java.time.LocalDate startDate,
+            @Param("endDate") java.time.LocalDate endDate
+    );
+
 }

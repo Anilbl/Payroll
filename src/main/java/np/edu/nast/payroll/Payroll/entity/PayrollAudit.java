@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class PayrollAudit {
 
     @ManyToOne(fetch = FetchType.EAGER) // Lazy is better for performance in audit logs
     @JoinColumn(name = "payroll_id", nullable = false)
+    @JsonBackReference
     private Payroll payroll; // Correctly maps to the Integer ID in Payroll
 
     @ManyToOne(fetch = FetchType.EAGER)

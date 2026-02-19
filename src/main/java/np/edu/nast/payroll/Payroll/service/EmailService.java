@@ -43,7 +43,7 @@ public class EmailService {
 
             // Header Section
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Paragraph title = new Paragraph("NAST PAYROLL - SALARY SLIP", titleFont);
+            Paragraph title = new Paragraph("Payroll of your Organization - SALARY SLIP", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(new Paragraph(" "));

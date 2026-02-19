@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -129,6 +130,7 @@ public class Payroll {
     @Column(name = "processed_at", nullable = false, updatable = false)
     private LocalDateTime processedAt = LocalDateTime.now();
     @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<PayrollAudit> auditLogs;
 
     @PrePersist
