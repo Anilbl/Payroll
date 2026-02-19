@@ -18,7 +18,7 @@ public class PayrollAudit {
     @Column(name = "audit_id", nullable = false)
     private Long auditId; // Changed to Long wrapper
 
-    @ManyToOne(fetch = FetchType.LAZY) // Lazy is better for performance in audit logs
+    @ManyToOne(fetch = FetchType.EAGER) // Lazy is better for performance in audit logs
     @JoinColumn(name = "payroll_id", nullable = false)
     private Payroll payroll; // Correctly maps to the Integer ID in Payroll
 
