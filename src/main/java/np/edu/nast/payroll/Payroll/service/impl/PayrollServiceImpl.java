@@ -24,6 +24,12 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayGroupRepository payGroupRepo;
 
     @Override
+    public List<Payroll> getAll() {
+        // Standard JpaRepository method to fetch all records (Sarah, Mike, etc.)
+        return payrollRepo.findAll();
+    }
+
+    @Override
     public List<Payroll> getAllPayrolls() {
         return payrollRepo.findAll();
     }

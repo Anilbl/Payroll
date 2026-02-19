@@ -22,5 +22,8 @@ public class Designation {
     @Column(nullable = false)
     private String designationTitle;
 
+    @Column(nullable = false)
+    private Double base_salary;
+
 
 }

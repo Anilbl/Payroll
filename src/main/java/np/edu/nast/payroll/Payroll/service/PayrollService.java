@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface PayrollService {
+    List<Payroll> getAll();
     List<Payroll> getAllPayrolls();
     Payroll processPayroll(Map<String, Object> payload);
     Payroll updateStatus(Integer id, String status);
