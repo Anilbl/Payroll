@@ -61,30 +61,25 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         /* 1. PUBLIC & ESEWA CALLBACKS */
                         .requestMatchers("/api/auth/**", "/error").permitAll()
-                        // Public access for eSewa return URL because no JWT is present during redirect
                         .requestMatchers("/api/esewa/success/**", "/api/esewa/failure/**").permitAll()
 
                         /* 2. DASHBOARD & PROFILE */
                         .requestMatchers("/api/employee/dashboard/**").hasAnyAuthority("ROLE_USER", "ROLE_EMPLOYEE", "ROLE_ADMIN", "ADMIN", "EMPLOYEE")
-                        .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/employees/**", "/api/users/**").authenticated()
 
-                        /* 3. ESEWA PAYMENT INITIATION */
-                        // Only Admin and Accountant can trigger the payment process
+                        /* 3. COMMON LOOKUPS (Payment Methods, Departments, etc.) */
+                        .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/payment-methods/**").authenticated()
+
+                        /* 4. PAYROLL COMMAND CENTER (The Batch Calculation) */
+                        // Ensuring the batch-calculate and preview endpoints are accessible to Admin/Accountant
+                        .requestMatchers("/api/payrolls/batch-calculate", "/api/payrolls/preview").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers("/api/payrolls/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+
+                        /* 5. ESEWA PAYMENT INITIATION */
                         .requestMatchers("/api/esewa/initiate/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
 
-                        /* 4. ATTENDANCE */
-                        .requestMatchers(HttpMethod.POST, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
-                        .requestMatchers(HttpMethod.PUT, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
-                        .requestMatchers(HttpMethod.GET, "/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT", "ROLE_EMPLOYEE", "EMPLOYEE")
-
-                        /* 5. LEAVE & ANALYTICS */
-                        .requestMatchers(HttpMethod.GET, "/api/leave-types/**", "/api/leave-balance/**").permitAll()
-                        .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
-
-                        /* 6. PAYROLL & REPORTS */
-                        .requestMatchers("/api/payrolls/**", "/api/reports/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        /* 6. ATTENDANCE & LEAVE */
+                        .requestMatchers("/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
+                        .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
 
                         /* 7. GLOBAL ADMIN WRITE PROTECTION */
                         .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")

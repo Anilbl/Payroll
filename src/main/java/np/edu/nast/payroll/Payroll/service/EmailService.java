@@ -63,6 +63,7 @@ public class EmailService {
             addTableRow(table, "Festival Bonus", payroll.getFestivalBonus());
             addTableRow(table, "Other Bonuses", payroll.getOtherBonuses());
             addTotalRow(table, "TOTAL GROSS SALARY", payroll.getGrossSalary());
+            addTotalRow(table, "Overtime Pay", payroll.getOvertimePay());
 
             // DEDUCTIONS (Using your Entity fields)
             addTableRow(table, "SSF Contribution (11%)", -payroll.getSsfContribution());
