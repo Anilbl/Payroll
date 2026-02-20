@@ -4,6 +4,7 @@ import np.edu.nast.payroll.Payroll.entity.Attendance;
 import np.edu.nast.payroll.Payroll.service.AttendanceService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -21,11 +22,11 @@ public class AttendanceController {
         return attendanceService.createAttendance(attendance);
     }
 
-    // Specific endpoint for Employee Panel Check-out
     @PutMapping("/checkout/{id}")
     public Attendance checkOut(@PathVariable Integer id) {
         Attendance attendance = new Attendance();
         attendance.setCheckOutTime(java.time.LocalDateTime.now());
+        attendance.setStatus("Checked Out");
         return attendanceService.updateAttendance(id, attendance);
     }
 
@@ -37,5 +38,14 @@ public class AttendanceController {
     @GetMapping("/employee/{empId}")
     public List<Attendance> getByEmployee(@PathVariable Integer empId) {
         return attendanceService.getAttendanceByEmployee(empId);
+    }
+
+    // NEW ENDPOINT FOR DASHBOARD CARDS
+    @GetMapping("/stats/{empId}/{year}/{month}")
+    public Map<String, Object> getStats(
+            @PathVariable Integer empId,
+            @PathVariable int year,
+            @PathVariable int month) {
+        return attendanceService.getMonthlyStats(empId, year, month);
     }
 }

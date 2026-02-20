@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
@@ -31,10 +32,11 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayGroupRepository payGroupRepo;
     private final PaymentMethodRepository paymentMethodRepo;
     private final AttendanceRepository attendanceRepo;
+    private final EmployeeLeaveRepository employeeLeaveRepo; // Added
 
     /**
      * DASHBOARD BATCH CALCULATION
-     * Merged: Handles Month Names/Numbers and calculates earned salary.
+     * Updated: Now reflects total payable hours (Attendance + Paid Leave).
      */
     @Override
     public List<PayrollDashboardDTO> getBatchCalculation(String month, int year) {
@@ -55,72 +57,53 @@ public class PayrollServiceImpl implements PayrollService {
         LocalDate periodEnd = periodStart.plusMonths(1);
 
         return employees.stream().map(emp -> {
-            double workedHours = calculateHoursForPeriodInternal(emp.getEmpId(), periodStart, periodEnd);
+            // Calculate both physical work and paid leave credit
+            double physicalHours = calculateHoursForPeriodInternal(emp.getEmpId(), periodStart, periodEnd);
+            double paidLeaveHours = calculatePaidLeaveHoursInternal(emp.getEmpId(), periodStart, periodEnd);
+            double combinedHours = physicalHours + paidLeaveHours;
+
             double standardTotalHours = 28.0 * 8.0;
             double baseSalary = (emp.getBasicSalary() != null && emp.getBasicSalary() > 0)
                     ? emp.getBasicSalary() : getFallbackBasicFromComponents();
 
             double hourlyRate = baseSalary / standardTotalHours;
-            double actualEarned = (workedHours >= standardTotalHours) ? baseSalary : (workedHours * hourlyRate);
+            double actualEarned = (combinedHours >= standardTotalHours) ? baseSalary : (combinedHours * hourlyRate);
 
             return PayrollDashboardDTO.builder()
                     .empId(emp.getEmpId())
                     .fullName(emp.getFirstName() + " " + emp.getLastName())
                     .basicSalary(baseSalary)
                     .earnedSalary(Math.round(actualEarned * 100.0) / 100.0)
-                    .totalWorkedHours(Math.round(workedHours * 100.0) / 100.0)
+                    .totalWorkedHours(Math.round(combinedHours * 100.0) / 100.0)
                     .maritalStatus(emp.getMaritalStatus())
                     .build();
         }).toList();
     }
 
-    @Override
-    public List<Payroll> getAllPayrolls() {
-        return payrollRepo.findAll();
-    }
-
+    /**
+     * CORE CALCULATION METHOD
+     * Deeply Integrated: Determines actual hours by combining physical attendance and approved leaves.
+     */
     @Override
     public Payroll calculatePreview(Map<String, Object> payload) {
-        log.info("--- START ATTENDANCE-BASED PAYROLL CALCULATION ---");
+        log.info("--- START INTEGRATED PAYROLL CALCULATION ---");
 
-        Object empIdObj = payload.get("empId");
-        if (empIdObj == null && payload.get("employee") instanceof Map) {
-            Map<?, ?> empMap = (Map<?, ?>) payload.get("employee");
-            empIdObj = empMap.get("empId");
-        }
-
-        if (empIdObj == null || empIdObj.toString().equalsIgnoreCase("undefined")) {
-            throw new RuntimeException("Validation Error: Employee ID is missing.");
-        }
-
-        Integer empId = Double.valueOf(empIdObj.toString()).intValue();
+        Integer empId = resolveEmpId(payload);
         Employee employee = employeeRepo.findById(empId)
                 .orElseThrow(() -> new RuntimeException("Employee not found for ID: " + empId));
 
         LocalDate periodStart = LocalDate.now().withDayOfMonth(1);
         LocalDate periodEnd = periodStart.plusMonths(1).withDayOfMonth(1);
 
-        // CHECK FOR EXISTING PAID/PROCESSING RECORDS
-        boolean alreadyExists = payrollRepo.findByEmployeeEmpId(empId).stream()
-                .anyMatch(p -> !"VOIDED".equals(p.getStatus())
-                        && p.getPayPeriodStart().equals(periodStart)
-                        && ("PAID".equals(p.getStatus()) || "PROCESSING".equals(p.getStatus())));
+        // 1. VALIDATION
+        validatePayrollPeriod(empId, periodStart);
 
-        if (alreadyExists) {
-            throw new RuntimeException("Payroll already processed for this period.");
-        }
+        // 2. CALCULATION OF TOTAL HOURS (Attendance + Paid Leave)
+        double physicalWorkedHours = calculateHoursForPeriodInternal(empId, periodStart, periodEnd);
+        double paidLeaveHours = calculatePaidLeaveHoursInternal(empId, periodStart, periodEnd);
+        double totalPayableHours = physicalWorkedHours + paidLeaveHours;
 
-        List<Attendance> attendanceList = attendanceRepo
-                .findByEmployee_EmpIdAndAttendanceDateGreaterThanEqualAndAttendanceDateLessThan(empId, periodStart, periodEnd);
-
-        double totalWorkedHours = 0.0;
-        for (Attendance attendance : attendanceList) {
-            if (attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
-                Duration duration = Duration.between(attendance.getCheckInTime(), attendance.getCheckOutTime());
-                totalWorkedHours += duration.toMinutes() / 60.0;
-            }
-        }
-
+        // 3. BASE SALARY CONFIG
         double standardTotalHours = 28.0 * 8.0;
         List<SalaryComponent> components = salaryComponentRepo.findAll();
         double baseSalaryFromConfig = (employee.getBasicSalary() != null && employee.getBasicSalary() > 0)
@@ -130,67 +113,137 @@ public class PayrollServiceImpl implements PayrollService {
             throw new RuntimeException("Error: No Basic Salary defined for Employee ID: " + empId);
         }
 
+        // 4. EARNINGS & OVERTIME
         double hourlyRate = baseSalaryFromConfig / standardTotalHours;
         double overtimeHours = 0.0;
         double overtimePay = 0.0;
         double actualBasicEarned = 0.0;
 
-        if (totalWorkedHours > standardTotalHours) {
-            overtimeHours = totalWorkedHours - standardTotalHours;
+        if (totalPayableHours > standardTotalHours) {
+            overtimeHours = totalPayableHours - standardTotalHours;
             overtimePay = overtimeHours * hourlyRate;
             actualBasicEarned = baseSalaryFromConfig;
         } else {
-            actualBasicEarned = totalWorkedHours * hourlyRate;
+            actualBasicEarned = totalPayableHours * hourlyRate;
         }
 
-        double dearnessAmt = components.stream()
-                .filter(c -> c.getComponentName().equalsIgnoreCase("Dearness Allowance"))
-                .mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(7380.0);
+        // 5. ALLOWANCES & DEDUCTIONS
+        double dearnessAmt = getComponentDefault(components, "Dearness Allowance", 7380.0);
+        double hraPercentage = getComponentDefault(components, "House Rent Allowance", 15.0);
+        double ssfPercentage = getComponentDefault(components, "ssf", 11.0);
 
-        double hraPercentage = components.stream()
-                .filter(c -> c.getComponentName().equalsIgnoreCase("House Rent Allowance"))
-                .mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(15.0);
-
-        double ssfPercentage = components.stream()
-                .filter(c -> c.getComponentName().toLowerCase().contains("ssf"))
-                .mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(11.0);
-
-        double festivalBonus = Double.parseDouble(payload.getOrDefault("festivalBonus", "0").toString());
-        double otherBonuses = Double.parseDouble(payload.getOrDefault("bonuses", "0").toString());
-        double citContribution = Double.parseDouble(payload.getOrDefault("citContribution", "0").toString());
+        double festivalBonus = parseDouble(payload, "festivalBonus");
+        double otherBonuses = parseDouble(payload, "bonuses");
+        double citContribution = parseDouble(payload, "citContribution");
 
         double totalAllowances = dearnessAmt + (actualBasicEarned * (hraPercentage / 100.0));
         double ssfContribution = actualBasicEarned * (ssfPercentage / 100.0);
 
+        // 6. TAXATION
         double monthlyGross = actualBasicEarned + totalAllowances + festivalBonus + otherBonuses + overtimePay;
         double taxableMonthly = monthlyGross - (ssfContribution + citContribution);
-
         double annualTax = calculateNepalTax(taxableMonthly * 12, employee.getMaritalStatus(), ssfContribution > 0);
         double monthlyTax = annualTax / 12;
 
+        // 7. BUILD RESULT
         return Payroll.builder()
                 .employee(employee)
                 .payGroup(employee.getPayGroup() != null ? employee.getPayGroup() : fetchDefaultPayGroup())
-                .basicSalary(actualBasicEarned)
-                .totalAllowances(totalAllowances)
+                .basicSalary(round(actualBasicEarned))
+                .totalAllowances(round(totalAllowances))
                 .festivalBonus(festivalBonus)
                 .otherBonuses(otherBonuses)
-                .overtimePay(overtimePay)
-                .ssfContribution(ssfContribution)
+                .overtimePay(round(overtimePay))
+                .ssfContribution(round(ssfContribution))
                 .citContribution(citContribution)
-                .grossSalary(monthlyGross)
-                .taxableIncome(taxableMonthly)
-                .totalTax(monthlyTax)
-                .totalDeductions(ssfContribution + citContribution + monthlyTax)
-                .netSalary(monthlyGross - (ssfContribution + citContribution + monthlyTax))
+                .grossSalary(round(monthlyGross))
+                .taxableIncome(round(taxableMonthly))
+                .totalTax(round(monthlyTax))
+                .totalDeductions(round(ssfContribution + citContribution + monthlyTax))
+                .netSalary(round(monthlyGross - (ssfContribution + citContribution + monthlyTax)))
                 .payPeriodStart(periodStart)
                 .payPeriodEnd(periodEnd)
-                .remarks("Worked: " + String.format("%.2f", totalWorkedHours) + " hrs.")
+                .remarks(String.format("Worked: %.2f hrs | Paid Leave: %.2f hrs", physicalWorkedHours, paidLeaveHours))
                 .status("PREVIEW")
                 .currencyCode("NPR")
                 .isVoided(false)
                 .build();
     }
+
+    /**
+     * Calculates virtual attendance hours from approved leaves.
+     * Uses optimized Repository query to ignore historical data.
+     */
+    private double calculatePaidLeaveHoursInternal(Integer empId, LocalDate start, LocalDate end) {
+        LocalDate actualEnd = end.minusDays(1);
+
+        // Only fetch leaves touching this specific month range
+        List<EmployeeLeave> leaves = employeeLeaveRepo.findRelevantLeaves(
+                empId, "Approved", start, actualEnd);
+
+        double totalPaidLeaveHours = 0.0;
+
+        for (EmployeeLeave leave : leaves) {
+            // Only process if Leave Type is marked as PAID in the system
+            if (leave.getLeaveType() != null && Boolean.TRUE.equals(leave.getLeaveType().getPaid())) {
+
+                // Calculate overlap to handle leaves spanning across month boundaries
+                LocalDate overlapStart = leave.getStartDate().isBefore(start) ? start : leave.getStartDate();
+                LocalDate overlapEnd = leave.getEndDate().isAfter(actualEnd) ? actualEnd : leave.getEndDate();
+
+                if (!overlapStart.isAfter(overlapEnd)) {
+                    long days = ChronoUnit.DAYS.between(overlapStart, overlapEnd) + 1;
+                    totalPaidLeaveHours += (days * 8.0);
+                }
+            }
+        }
+        return totalPaidLeaveHours;
+    }
+
+    // --- REPOSITORY ACCESS & HELPERS ---
+
+    private double calculateHoursForPeriodInternal(Integer empId, LocalDate start, LocalDate end) {
+        return attendanceRepo.findByEmployee_EmpIdAndAttendanceDateGreaterThanEqualAndAttendanceDateLessThan(empId, start, end)
+                .stream()
+                .filter(a -> a.getCheckInTime() != null && a.getCheckOutTime() != null)
+                .mapToDouble(a -> Duration.between(a.getCheckInTime(), a.getCheckOutTime()).toMinutes() / 60.0)
+                .sum();
+    }
+
+    private Integer resolveEmpId(Map<String, Object> payload) {
+        Object empIdObj = payload.get("empId");
+        if (empIdObj == null && payload.get("employee") instanceof Map) {
+            empIdObj = ((Map<?, ?>) payload.get("employee")).get("empId");
+        }
+        if (empIdObj == null || empIdObj.toString().equalsIgnoreCase("undefined")) {
+            throw new RuntimeException("Validation Error: Employee ID is missing.");
+        }
+        return Double.valueOf(empIdObj.toString()).intValue();
+    }
+
+    private void validatePayrollPeriod(Integer empId, LocalDate start) {
+        boolean exists = payrollRepo.findByEmployeeEmpId(empId).stream()
+                .anyMatch(p -> !"VOIDED".equals(p.getStatus())
+                        && p.getPayPeriodStart().equals(start)
+                        && ("PAID".equals(p.getStatus()) || "PROCESSING".equals(p.getStatus())));
+        if (exists) throw new RuntimeException("Payroll already processed for this period.");
+    }
+
+    private double getComponentDefault(List<SalaryComponent> components, String name, double fallback) {
+        return components.stream()
+                .filter(c -> c.getComponentName().toLowerCase().contains(name.toLowerCase()))
+                .mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(fallback);
+    }
+
+    private double parseDouble(Map<String, Object> payload, String key) {
+        return Double.parseDouble(payload.getOrDefault(key, "0").toString());
+    }
+
+    private double round(double val) {
+        return Math.round(val * 100.0) / 100.0;
+    }
+
+    // --- TRANSACTIONAL METHODS (Unchanged Features) ---
 
     @Override
     @Transactional
@@ -198,41 +251,25 @@ public class PayrollServiceImpl implements PayrollService {
         Payroll payroll = calculatePreview(payload);
         Employee employee = payroll.getEmployee();
 
-        // 1. CLEANUP PREVIOUS PENDING ATTEMPTS (From version 1)
         payrollRepo.findByEmployeeEmpId(employee.getEmpId()).stream()
-                .filter(p -> "PENDING_PAYMENT".equals(p.getStatus())
-                        && p.getPayPeriodStart().equals(payroll.getPayPeriodStart()))
+                .filter(p -> "PENDING_PAYMENT".equals(p.getStatus()) && p.getPayPeriodStart().equals(payroll.getPayPeriodStart()))
                 .forEach(p -> payrollRepo.delete(p));
 
-        // 2. RESOLVE BANK ACCOUNT (The Fix)
         BankAccount paymentAccount = employee.getPrimaryBankAccount();
-        if (paymentAccount == null && !employee.getBankAccount().isEmpty()) {
-            paymentAccount = employee.getBankAccount().get(0);
-        }
-        if (paymentAccount == null) {
-            throw new RuntimeException("Bank Account or eSewa ID missing for " + employee.getFirstName());
-        }
+        if (paymentAccount == null && !employee.getBankAccount().isEmpty()) paymentAccount = employee.getBankAccount().get(0);
+        if (paymentAccount == null) throw new RuntimeException("Bank Account missing for " + employee.getFirstName());
 
-        // 3. AUTH & USER
         var auth = SecurityContextHolder.getContext().getAuthentication();
         String principalName = (auth != null) ? auth.getName() : "system";
-        User loggedInUser = userRepo.findByEmail(principalName)
-                .or(() -> userRepo.findByUsername(principalName))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User loggedInUser = userRepo.findByEmail(principalName).or(() -> userRepo.findByUsername(principalName)).orElseThrow();
 
-        // 4. BATCH INFO
         LocalDate now = LocalDate.now();
-        MonthlyInfo summary = monthlyInfoRepo.findByMonthNameAndStatus(now.getMonth().name(), "PROCESSING")
-                .stream()
-                .filter(m -> m.getPayGroup().getPayGroupId().equals(employee.getPayGroup().getPayGroupId()))
-                .findFirst()
+        MonthlyInfo summary = monthlyInfoRepo.findByMonthNameAndStatus(now.getMonth().name(), "PROCESSING").stream()
+                .filter(m -> m.getPayGroup().getPayGroupId().equals(employee.getPayGroup().getPayGroupId())).findFirst()
                 .orElseGet(() -> createNewMonthlyBatch(employee, now, loggedInUser));
 
-        Integer methodId = Integer.valueOf(payload.get("paymentMethodId").toString());
-        PaymentMethod selectedMethod = paymentMethodRepo.findById(methodId)
-                .orElseThrow(() -> new RuntimeException("Payment Method not found."));
+        PaymentMethod selectedMethod = paymentMethodRepo.findById(Integer.valueOf(payload.get("paymentMethodId").toString())).orElseThrow();
 
-        // 5. SET FINAL FIELDS
         payroll.setMonthlyInfo(summary);
         payroll.setStatus("PENDING_PAYMENT");
         payroll.setProcessedBy(loggedInUser);
@@ -245,54 +282,38 @@ public class PayrollServiceImpl implements PayrollService {
 
     @Override
     @Transactional
-    public void finalizePayroll(Integer payrollId, String transactionRef) {
-        Payroll payroll = payrollRepo.findById(payrollId).orElseThrow();
-        if ("PAID".equals(payroll.getStatus())) return;
-
-        payroll.setStatus("PAID");
-        payroll.setTransactionRef(transactionRef);
-        payroll.setProcessedAt(LocalDateTime.now());
-        updateMonthlyTotals(payroll.getMonthlyInfo(), payroll);
-        payrollRepo.save(payroll);
+    public void finalizePayroll(Integer id, String ref) {
+        Payroll p = payrollRepo.findById(id).orElseThrow();
+        if ("PAID".equals(p.getStatus())) return;
+        p.setStatus("PAID");
+        p.setTransactionRef(ref);
+        p.setProcessedAt(LocalDateTime.now());
+        updateMonthlyTotals(p.getMonthlyInfo(), p);
+        payrollRepo.save(p);
     }
-
-    @Override @Transactional public void rollbackPayroll(Integer id) { payrollRepo.deleteById(id); }
 
     private double calculateNepalTax(double taxableIncome, String status, boolean isSsfEnrolled) {
         if (taxableIncome <= 0) return 0.0;
         List<TaxSlab> slabs = taxSlabRepo.findByTaxpayerStatusOrderByMinAmountAsc(status);
         double totalTax = 0.0;
         for (TaxSlab slab : slabs) {
-            double previousSlabEnd = slab.getPreviousLimit();
-            if (taxableIncome > previousSlabEnd) {
-                double amountInThisBucket = Math.min(taxableIncome, slab.getMaxAmount()) - previousSlabEnd;
-                if (amountInThisBucket > 0) {
+            double prevLimit = slab.getPreviousLimit();
+            if (taxableIncome > prevLimit) {
+                double bucket = Math.min(taxableIncome, slab.getMaxAmount()) - prevLimit;
+                if (bucket > 0) {
                     double rate = (slab.getMinAmount() == 0 && isSsfEnrolled) ? 0.0 : (slab.getRatePercentage() / 100.0);
-                    totalTax += amountInThisBucket * rate;
+                    totalTax += bucket * rate;
                 }
             }
         }
-        return Math.round(totalTax * 100.0) / 100.0;
+        return round(totalTax);
     }
 
     private MonthlyInfo createNewMonthlyBatch(Employee emp, LocalDate date, User creator) {
-        // Correctly initializing totals to 0.0 to prevent NullPointer during updates
-        return monthlyInfoRepo.save(MonthlyInfo.builder()
-                .monthName(date.getMonth().name())
-                .monthStart(date.withDayOfMonth(1))
-                .monthEnd(date.withDayOfMonth(date.lengthOfMonth()))
-                .payGroup(emp.getPayGroup())
-                .totalEmployeesProcessed(0)
-                .totalGrossSalary(0.0)
-                .totalAllowances(0.0)
-                .totalDeductions(0.0)
-                .totalTax(0.0)
-                .totalNetSalary(0.0)
-                .currency("NPR")
-                .status("PROCESSING")
-                .generatedBy(creator)
-                .generatedAt(LocalDateTime.now())
-                .build());
+        return monthlyInfoRepo.save(MonthlyInfo.builder().monthName(date.getMonth().name()).monthStart(date.withDayOfMonth(1))
+                .monthEnd(date.withDayOfMonth(date.lengthOfMonth())).payGroup(emp.getPayGroup()).totalEmployeesProcessed(0)
+                .totalGrossSalary(0.0).totalAllowances(0.0).totalDeductions(0.0).totalTax(0.0).totalNetSalary(0.0)
+                .currency("NPR").status("PROCESSING").generatedBy(creator).generatedAt(LocalDateTime.now()).build());
     }
 
     private void updateMonthlyTotals(MonthlyInfo summary, Payroll p) {
@@ -302,31 +323,12 @@ public class PayrollServiceImpl implements PayrollService {
         monthlyInfoRepo.save(summary);
     }
 
-    @Override public List<Payroll> getPayrollByEmployeeId(Integer empId) { return payrollRepo.findByEmployeeEmpId(empId); }
-    @Override public Payroll updateStatus(Integer id, String status) {
-        Payroll p = getPayrollById(id);
-        p.setStatus(status);
-        if ("VOIDED".equals(status)) p.setIsVoided(true);
-        return payrollRepo.save(p);
-    }
+    @Override public List<Payroll> getAllPayrolls() { return payrollRepo.findAll(); }
+    @Override public List<Payroll> getPayrollByEmployeeId(Integer id) { return payrollRepo.findByEmployeeEmpId(id); }
+    @Override public Payroll updateStatus(Integer id, String status) { Payroll p = getPayrollById(id); p.setStatus(status); if ("VOIDED".equals(status)) p.setIsVoided(true); return payrollRepo.save(p); }
     @Override public Payroll voidPayroll(Integer id) { return updateStatus(id, "VOIDED"); }
     @Override public Payroll getPayrollById(Integer id) { return payrollRepo.findById(id).orElseThrow(); }
-
-    private double getFallbackBasicFromComponents() {
-        return salaryComponentRepo.findAll().stream()
-                .filter(c -> c.getComponentName().equalsIgnoreCase("Basic Salary"))
-                .mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(0.0);
-    }
-
-    private double calculateHoursForPeriodInternal(Integer empId, LocalDate start, LocalDate end) {
-        return attendanceRepo.findByEmployee_EmpIdAndAttendanceDateGreaterThanEqualAndAttendanceDateLessThan(empId, start, end)
-                .stream()
-                .filter(a -> a.getCheckInTime() != null && a.getCheckOutTime() != null)
-                .mapToDouble(a -> Duration.between(a.getCheckInTime(), a.getCheckOutTime()).toMinutes() / 60.0)
-                .sum();
-    }
-
-    private PayGroup fetchDefaultPayGroup() {
-        return payGroupRepo.findById(4).orElseThrow(() -> new RuntimeException("Default PayGroup 4 missing."));
-    }
+    @Override @Transactional public void rollbackPayroll(Integer id) { payrollRepo.deleteById(id); }
+    private double getFallbackBasicFromComponents() { return salaryComponentRepo.findAll().stream().filter(c -> c.getComponentName().equalsIgnoreCase("Basic Salary")).mapToDouble(SalaryComponent::getDefaultValue).findFirst().orElse(0.0); }
+    private PayGroup fetchDefaultPayGroup() { return payGroupRepo.findById(4).orElseThrow(); }
 }

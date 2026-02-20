@@ -27,17 +27,14 @@ public class DashboardController {
     @Autowired
     private AttendanceRepository attendanceRepository;
 
-    // Fixed mapping to match frontend request: /api/dashboard/admin/stats
     @GetMapping("/admin/stats")
     public Map<String, Object> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
         try {
             long totalEmployees = employeeRepository.count();
-            // Case-insensitive check to match your React status badge logic
             long pendingLeaves = leaveRepository.countByStatus("PENDING");
             long presentToday = attendanceRepository.countByAttendanceDate(LocalDate.now());
 
-            // Calculation fix: Use double to ensure accuracy and handle zero workforce safely
             String attendancePercentage = "0%";
             if (totalEmployees > 0) {
                 double percentage = ((double) presentToday / totalEmployees) * 100;
@@ -49,7 +46,6 @@ public class DashboardController {
             stats.put("dailyAttendance", attendancePercentage);
 
         } catch (Exception e) {
-            // Log the error and return empty/safe values to prevent 500 error
             e.printStackTrace();
             stats.put("totalWorkforce", 0);
             stats.put("leaveRequests", 0);
@@ -58,10 +54,25 @@ public class DashboardController {
         return stats;
     }
 
+    // --- UPDATED: Accept Filters for Day, Month, Year, and Search ---
     @GetMapping("/recent-attendance")
-    public List<Attendance> getRecentAttendance() {
+    public List<Attendance> getRecentAttendance(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day,
+            @RequestParam(required = false) String search) {
         try {
-            List<Attendance> list = attendanceRepository.findAllByAttendanceDate(LocalDate.now());
+            // Default to today if parameters are missing
+            LocalDate now = LocalDate.now();
+            int filterYear = (year != null) ? year : now.getYear();
+            int filterMonth = (month != null) ? month : now.getMonthValue();
+            int filterDay = (day != null) ? day : now.getDayOfMonth();
+            String filterSearch = (search != null) ? search : "";
+
+            List<Attendance> list = attendanceRepository.findFilteredAttendance(
+                    filterYear, filterMonth, filterDay, filterSearch
+            );
+
             return (list != null) ? list : new ArrayList<>();
         } catch (Exception e) {
             e.printStackTrace();
