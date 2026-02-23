@@ -2,6 +2,7 @@ package np.edu.nast.payroll.Payroll.controller;
 
 import np.edu.nast.payroll.Payroll.dto.auth.PayrollDashboardDTO;
 import np.edu.nast.payroll.Payroll.entity.Payroll;
+import np.edu.nast.payroll.Payroll.reportdto.PayrollSummaryDTO;
 import np.edu.nast.payroll.Payroll.service.PayrollService;
 import np.edu.nast.payroll.Payroll.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,6 +125,19 @@ public class PayrollController {
         } catch (Exception e) {
             System.err.println("Email Error for Payroll ID " + id + ": " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+    // for the dashboard report in accoutant and admin dashboard
+    @GetMapping("/salary-summary")
+    public ResponseEntity<PayrollSummaryDTO> getSalarySummary(
+            @RequestParam int month,
+            @RequestParam int year) {
+        try {
+            PayrollSummaryDTO summary = payrollService.getSalarySummary(month, year);
+            return ResponseEntity.ok(summary);
+        } catch (Exception e) {
+            // Log error for debugging
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

@@ -17,9 +17,21 @@ public class EmployeeLeaveController {
         this.employeeLeaveService = service;
     }
 
+    /**
+     * NEW: Filter endpoint for Admin Leave Page.
+     * Matches the 'params' sent from the React fetchLeaves function.
+     */
+    @GetMapping("/filter")
+    public List<EmployeeLeave> getFilteredLeaves(
+            @RequestParam Integer year,
+            @RequestParam Integer month,
+            @RequestParam String status,
+            @RequestParam(required = false) String search) {
+        return employeeLeaveService.getFilteredLeaves(year, month, status, search);
+    }
+
     @PostMapping
     public EmployeeLeave requestLeave(@RequestBody EmployeeLeave leave) {
-        // The service now handles calculation and linking
         return employeeLeaveService.requestLeave(leave);
     }
 
@@ -41,7 +53,6 @@ public class EmployeeLeaveController {
         Object rawId = payload.get("adminId");
         Integer adminId = (rawId != null) ? Integer.parseInt(rawId.toString()) : 1;
 
-        // ✅ This call now triggers the balance deduction/refund logic in the ServiceImpl
         return employeeLeaveService.updateLeaveStatus(id, status, adminId, reason);
     }
 }

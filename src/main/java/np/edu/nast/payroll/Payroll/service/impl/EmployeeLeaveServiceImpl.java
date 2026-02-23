@@ -19,11 +19,19 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
     private final UserRepository userRepo;
     private final EmployeeRepository employeeRepo;
     private final LeaveTypeRepository leaveTypeRepo;
-    private final LeaveBalanceRepository leaveBalanceRepo; // Added for balance logic
+    private final LeaveBalanceRepository leaveBalanceRepo;
 
     @Override
     public List<EmployeeLeave> getAllLeaves() {
         return employeeLeaveRepo.findAll();
+    }
+
+    // NEW: Implementation of the Filter logic
+    @Override
+    public List<EmployeeLeave> getFilteredLeaves(Integer year, Integer month, String status, String search) {
+        String searchTerm = (search == null) ? "" : search;
+        String statusFilter = (status == null) ? "All" : status;
+        return employeeLeaveRepo.findFilteredLeaves(year, month, statusFilter, searchTerm);
     }
 
     @Override
@@ -34,16 +42,12 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
 
         String oldStatus = leave.getStatus();
 
-        // --- NEW BALANCE LOGIC START ---
-        // If moving from PENDING/REJECTED to APPROVED -> Deduct days from balance
         if ("Approved".equalsIgnoreCase(status) && !"Approved".equalsIgnoreCase(oldStatus)) {
             updateActualBalance(leave, true);
         }
-        // If moving from APPROVED to REJECTED -> Refund days back to balance
         else if ("Rejected".equalsIgnoreCase(status) && "Approved".equalsIgnoreCase(oldStatus)) {
             updateActualBalance(leave, false);
         }
-        // --- NEW BALANCE LOGIC END ---
 
         leave.setStatus(status);
 
@@ -67,14 +71,8 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
         return employeeLeaveRepo.save(leave);
     }
 
-    /**
-     * Helper method to handle the math for LeaveBalance.
-     * Uses the year of the leave start date to find the correct record.
-     */
     private void updateActualBalance(EmployeeLeave leave, boolean isDeducting) {
         int year = leave.getStartDate().getYear();
-
-        // Find the specific wallet for this employee + leave type + year
         LeaveBalance balance = leaveBalanceRepo.findByEmployeeAndLeaveTypeAndYear(
                 leave.getEmployee(),
                 leave.getLeaveType(),
@@ -90,10 +88,8 @@ public class EmployeeLeaveServiceImpl implements EmployeeLeaveService {
             }
             balance.setCurrentBalanceDays(balance.getCurrentBalanceDays() - totalDays);
         } else {
-            // Refunding days
             balance.setCurrentBalanceDays(balance.getCurrentBalanceDays() + totalDays);
         }
-
         leaveBalanceRepo.save(balance);
     }
 

@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import np.edu.nast.payroll.Payroll.dto.auth.PayrollDashboardDTO;
 import np.edu.nast.payroll.Payroll.entity.*;
+import np.edu.nast.payroll.Payroll.reportdto.DepartmentSummaryDTO;
+import np.edu.nast.payroll.Payroll.reportdto.PayrollSummaryDTO;
 import np.edu.nast.payroll.Payroll.repository.*;
 import np.edu.nast.payroll.Payroll.service.PayrollService;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,11 +34,52 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayGroupRepository payGroupRepo;
     private final PaymentMethodRepository paymentMethodRepo;
     private final AttendanceRepository attendanceRepo;
-    private final EmployeeLeaveRepository employeeLeaveRepo; // Added
+    private final EmployeeLeaveRepository employeeLeaveRepo;
+
+    /**
+     * UPDATED: Salary Summary for Reports
+     * This provides the data for the "Financial Overview" and "Departmental Breakdown"
+     */
+    @Override
+    public PayrollSummaryDTO getSalarySummary(int month, int year) {
+        // Fetch overall metrics: Gross, Deductions, Net, Tax, SSF, OT, Count
+        Object result = payrollRepo.getOverallMetrics(month, year);
+
+        // Fetch departmental breakdown: Name, Total Employees, Paid Count, Net, Tax
+        List<DepartmentSummaryDTO> depts = payrollRepo.getDepartmentalSummary(month, year);
+
+        PayrollSummaryDTO summary = new PayrollSummaryDTO();
+
+        if (result != null) {
+            Object[] row = (Object[]) result;
+            summary.setTotalGross(row[0] != null ? ((Number) row[0]).doubleValue() : 0.0);
+            summary.setTotalDeductions(row[1] != null ? ((Number) row[1]).doubleValue() : 0.0);
+            summary.setTotalNet(row[2] != null ? ((Number) row[2]).doubleValue() : 0.0);
+            summary.setTotalTax(row[3] != null ? ((Number) row[3]).doubleValue() : 0.0);
+            summary.setTotalSSF(row[4] != null ? ((Number) row[4]).doubleValue() : 0.0);
+            summary.setTotalOvertime(row[5] != null ? ((Number) row[5]).doubleValue() : 0.0);
+            summary.setPaidCount(row[6] != null ? ((Number) row[6]).longValue() : 0L);
+        } else {
+            summary.setTotalGross(0.0);
+            summary.setTotalDeductions(0.0);
+            summary.setTotalNet(0.0);
+            summary.setTotalTax(0.0);
+            summary.setTotalSSF(0.0);
+            summary.setTotalOvertime(0.0);
+            summary.setPaidCount(0L);
+        }
+
+        summary.setDepartments(depts != null ? depts : new ArrayList<>());
+
+        // Ribbon Stat: Global active staff count
+        summary.setTotalEmployees(employeeRepo.count());
+
+        return summary;
+    }
 
     /**
      * DASHBOARD BATCH CALCULATION
-     * Updated: Now reflects total payable hours (Attendance + Paid Leave).
+     * Reflects total payable hours (Attendance + Paid Leave).
      */
     @Override
     public List<PayrollDashboardDTO> getBatchCalculation(String month, int year) {
@@ -57,7 +100,6 @@ public class PayrollServiceImpl implements PayrollService {
         LocalDate periodEnd = periodStart.plusMonths(1);
 
         return employees.stream().map(emp -> {
-            // Calculate both physical work and paid leave credit
             double physicalHours = calculateHoursForPeriodInternal(emp.getEmpId(), periodStart, periodEnd);
             double paidLeaveHours = calculatePaidLeaveHoursInternal(emp.getEmpId(), periodStart, periodEnd);
             double combinedHours = physicalHours + paidLeaveHours;
@@ -82,7 +124,6 @@ public class PayrollServiceImpl implements PayrollService {
 
     /**
      * CORE CALCULATION METHOD
-     * Deeply Integrated: Determines actual hours by combining physical attendance and approved leaves.
      */
     @Override
     public Payroll calculatePreview(Map<String, Object> payload) {
@@ -95,15 +136,12 @@ public class PayrollServiceImpl implements PayrollService {
         LocalDate periodStart = LocalDate.now().withDayOfMonth(1);
         LocalDate periodEnd = periodStart.plusMonths(1).withDayOfMonth(1);
 
-        // 1. VALIDATION
         validatePayrollPeriod(empId, periodStart);
 
-        // 2. CALCULATION OF TOTAL HOURS (Attendance + Paid Leave)
         double physicalWorkedHours = calculateHoursForPeriodInternal(empId, periodStart, periodEnd);
         double paidLeaveHours = calculatePaidLeaveHoursInternal(empId, periodStart, periodEnd);
         double totalPayableHours = physicalWorkedHours + paidLeaveHours;
 
-        // 3. BASE SALARY CONFIG
         double standardTotalHours = 28.0 * 8.0;
         List<SalaryComponent> components = salaryComponentRepo.findAll();
         double baseSalaryFromConfig = (employee.getBasicSalary() != null && employee.getBasicSalary() > 0)
@@ -113,7 +151,6 @@ public class PayrollServiceImpl implements PayrollService {
             throw new RuntimeException("Error: No Basic Salary defined for Employee ID: " + empId);
         }
 
-        // 4. EARNINGS & OVERTIME
         double hourlyRate = baseSalaryFromConfig / standardTotalHours;
         double overtimeHours = 0.0;
         double overtimePay = 0.0;
@@ -127,7 +164,6 @@ public class PayrollServiceImpl implements PayrollService {
             actualBasicEarned = totalPayableHours * hourlyRate;
         }
 
-        // 5. ALLOWANCES & DEDUCTIONS
         double dearnessAmt = getComponentDefault(components, "Dearness Allowance", 7380.0);
         double hraPercentage = getComponentDefault(components, "House Rent Allowance", 15.0);
         double ssfPercentage = getComponentDefault(components, "ssf", 11.0);
@@ -139,13 +175,11 @@ public class PayrollServiceImpl implements PayrollService {
         double totalAllowances = dearnessAmt + (actualBasicEarned * (hraPercentage / 100.0));
         double ssfContribution = actualBasicEarned * (ssfPercentage / 100.0);
 
-        // 6. TAXATION
         double monthlyGross = actualBasicEarned + totalAllowances + festivalBonus + otherBonuses + overtimePay;
         double taxableMonthly = monthlyGross - (ssfContribution + citContribution);
         double annualTax = calculateNepalTax(taxableMonthly * 12, employee.getMaritalStatus(), ssfContribution > 0);
         double monthlyTax = annualTax / 12;
 
-        // 7. BUILD RESULT
         return Payroll.builder()
                 .employee(employee)
                 .payGroup(employee.getPayGroup() != null ? employee.getPayGroup() : fetchDefaultPayGroup())
@@ -170,27 +204,14 @@ public class PayrollServiceImpl implements PayrollService {
                 .build();
     }
 
-    /**
-     * Calculates virtual attendance hours from approved leaves.
-     * Uses optimized Repository query to ignore historical data.
-     */
     private double calculatePaidLeaveHoursInternal(Integer empId, LocalDate start, LocalDate end) {
         LocalDate actualEnd = end.minusDays(1);
-
-        // Only fetch leaves touching this specific month range
-        List<EmployeeLeave> leaves = employeeLeaveRepo.findRelevantLeaves(
-                empId, "Approved", start, actualEnd);
-
+        List<EmployeeLeave> leaves = employeeLeaveRepo.findRelevantLeaves(empId, "Approved", start, actualEnd);
         double totalPaidLeaveHours = 0.0;
-
         for (EmployeeLeave leave : leaves) {
-            // Only process if Leave Type is marked as PAID in the system
             if (leave.getLeaveType() != null && Boolean.TRUE.equals(leave.getLeaveType().getPaid())) {
-
-                // Calculate overlap to handle leaves spanning across month boundaries
                 LocalDate overlapStart = leave.getStartDate().isBefore(start) ? start : leave.getStartDate();
                 LocalDate overlapEnd = leave.getEndDate().isAfter(actualEnd) ? actualEnd : leave.getEndDate();
-
                 if (!overlapStart.isAfter(overlapEnd)) {
                     long days = ChronoUnit.DAYS.between(overlapStart, overlapEnd) + 1;
                     totalPaidLeaveHours += (days * 8.0);
@@ -199,8 +220,6 @@ public class PayrollServiceImpl implements PayrollService {
         }
         return totalPaidLeaveHours;
     }
-
-    // --- REPOSITORY ACCESS & HELPERS ---
 
     private double calculateHoursForPeriodInternal(Integer empId, LocalDate start, LocalDate end) {
         return attendanceRepo.findByEmployee_EmpIdAndAttendanceDateGreaterThanEqualAndAttendanceDateLessThan(empId, start, end)
@@ -239,11 +258,7 @@ public class PayrollServiceImpl implements PayrollService {
         return Double.parseDouble(payload.getOrDefault(key, "0").toString());
     }
 
-    private double round(double val) {
-        return Math.round(val * 100.0) / 100.0;
-    }
-
-    // --- TRANSACTIONAL METHODS (Unchanged Features) ---
+    private double round(double val) { return Math.round(val * 100.0) / 100.0; }
 
     @Override
     @Transactional
@@ -253,7 +268,7 @@ public class PayrollServiceImpl implements PayrollService {
 
         payrollRepo.findByEmployeeEmpId(employee.getEmpId()).stream()
                 .filter(p -> "PENDING_PAYMENT".equals(p.getStatus()) && p.getPayPeriodStart().equals(payroll.getPayPeriodStart()))
-                .forEach(p -> payrollRepo.delete(p));
+                .forEach(payrollRepo::delete);
 
         BankAccount paymentAccount = employee.getPrimaryBankAccount();
         if (paymentAccount == null && !employee.getBankAccount().isEmpty()) paymentAccount = employee.getBankAccount().get(0);

@@ -35,6 +35,8 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+        // Warning: NoOpPasswordEncoder is only for development.
+        // Use BCryptPasswordEncoder for production.
         return NoOpPasswordEncoder.getInstance();
     }
 
@@ -64,29 +66,37 @@ public class SecurityConfig {
                         .requestMatchers("/api/esewa/success/**", "/api/esewa/failure/**").permitAll()
 
                         /* 2. DASHBOARD & PROFILE */
-                        .requestMatchers("/api/employee/dashboard/**").hasAnyAuthority("ROLE_USER", "ROLE_EMPLOYEE", "ROLE_ADMIN", "ADMIN", "EMPLOYEE")
+                        .requestMatchers("/api/employee/dashboard/**")
+                        .hasAnyAuthority("ROLE_USER", "ROLE_EMPLOYEE", "ROLE_ADMIN", "ADMIN", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
 
-                        /* 3. COMMON LOOKUPS (Payment Methods, Departments, etc.) */
+                        /* 3. COMMON LOOKUPS */
                         .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/payment-methods/**").authenticated()
 
-                        /* 4. PAYROLL COMMAND CENTER (The Batch Calculation) */
-                        // Ensuring the batch-calculate and preview endpoints are accessible to Admin/Accountant
-                        .requestMatchers("/api/payrolls/batch-calculate", "/api/payrolls/preview").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers("/api/payrolls/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        /* 4. PAYROLL & PAYMENT (Accountant Specific Access) */
+                        // Allow Accountant to access payroll logic, batch calculations, and payment initiation
+                        .requestMatchers("/api/payrolls/batch-calculate", "/api/payrolls/preview")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers("/api/payrolls/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers("/api/esewa/initiate/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
 
-                        /* 5. ESEWA PAYMENT INITIATION */
-                        .requestMatchers("/api/esewa/initiate/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        /* 5. ATTENDANCE & LEAVE */
+                        .requestMatchers("/api/attendance/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
 
-                        /* 6. ATTENDANCE & LEAVE */
-                        .requestMatchers("/api/attendance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
-                        .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE")
+                        /* 6. GLOBAL WRITE PROTECTION RULES */
+                        // POST/PUT/DELETE logic updated to include Accountant where business logic requires it
+                        .requestMatchers(HttpMethod.POST, "/api/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers(HttpMethod.PUT, "/api/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN") // Keep Delete restricted to Admin for safety
 
-                        /* 7. GLOBAL ADMIN WRITE PROTECTION */
-                        .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-
-                        /* 8. FALLBACK */
+                        /* 7. FALLBACK */
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -97,6 +107,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+        // Updated to allow your common frontend ports
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));

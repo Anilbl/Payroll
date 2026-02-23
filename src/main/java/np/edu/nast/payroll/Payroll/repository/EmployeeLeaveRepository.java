@@ -14,9 +14,23 @@ import java.util.List;
 public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, Integer> {
 
     /**
-     * Optimized Overlap Query:
-     * Finds leaves where the leave period touches the payroll period.
+     * NEW: Dynamic filtering for the Admin Leave Page.
+     * Searches by Year, Month, Status (with "All" support), and Search Term (Name/ID).
      */
+    @Query("SELECT l FROM EmployeeLeave l WHERE " +
+            "YEAR(l.startDate) = :year AND " +
+            "MONTH(l.startDate) = :month AND " +
+            "(:status = 'All' OR l.status = :status) AND " +
+            "(LOWER(l.employee.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            " LOWER(l.employee.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            " CAST(l.employee.empId AS string) LIKE CONCAT('%', :search, '%'))")
+    List<EmployeeLeave> findFilteredLeaves(
+            @Param("year") int year,
+            @Param("month") int month,
+            @Param("status") String status,
+            @Param("search") String search
+    );
+
     @Query("SELECT l FROM EmployeeLeave l WHERE l.employee.empId = :empId " +
             "AND l.status = :status " +
             "AND l.startDate <= :periodEnd " +
@@ -28,7 +42,6 @@ public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, In
             @Param("periodEnd") LocalDate periodEnd
     );
 
-    // Kept for backward compatibility
     List<EmployeeLeave> findByEmployeeEmpIdAndStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
             Integer empId, String status, LocalDate periodEnd, LocalDate periodStart
     );

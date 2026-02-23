@@ -27,17 +27,35 @@ public class DashboardController {
     @Autowired
     private AttendanceRepository attendanceRepository;
 
+    /**
+     * UPDATED: Now accepts date parameters to calculate dynamic stats
+     * based on the day selected in the frontend.
+     */
     @GetMapping("/admin/stats")
-    public Map<String, Object> getDashboardStats() {
+    public Map<String, Object> getDashboardStats(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day) {
+
         Map<String, Object> stats = new HashMap<>();
         try {
+            // 1. Determine the Target Date (Default to today)
+            LocalDate now = LocalDate.now();
+            LocalDate targetDate = (year != null && month != null && day != null)
+                    ? LocalDate.of(year, month, day)
+                    : now;
+
+            // 2. Fetch data based on the selected date
             long totalEmployees = employeeRepository.count();
             long pendingLeaves = leaveRepository.countByStatus("PENDING");
-            long presentToday = attendanceRepository.countByAttendanceDate(LocalDate.now());
 
+            // Get attendance count for the specific selected date
+            long presentOnDate = attendanceRepository.countByAttendanceDate(targetDate);
+
+            // 3. Calculation for the specific day
             String attendancePercentage = "0%";
             if (totalEmployees > 0) {
-                double percentage = ((double) presentToday / totalEmployees) * 100;
+                double percentage = ((double) presentOnDate / totalEmployees) * 100;
                 attendancePercentage = Math.round(percentage) + "%";
             }
 
@@ -54,7 +72,9 @@ public class DashboardController {
         return stats;
     }
 
-    // --- UPDATED: Accept Filters for Day, Month, Year, and Search ---
+    /**
+     * UPDATED: Accept Filters for Day, Month, Year, and Search for the table records.
+     */
     @GetMapping("/recent-attendance")
     public List<Attendance> getRecentAttendance(
             @RequestParam(required = false) Integer year,
@@ -69,6 +89,7 @@ public class DashboardController {
             int filterDay = (day != null) ? day : now.getDayOfMonth();
             String filterSearch = (search != null) ? search : "";
 
+            // Uses the custom Query in AttendanceRepository
             List<Attendance> list = attendanceRepository.findFilteredAttendance(
                     filterYear, filterMonth, filterDay, filterSearch
             );

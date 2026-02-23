@@ -58,15 +58,22 @@ public class ReportController {
     // 1️⃣ Summary cards
     @GetMapping("/analytics/summary")
     public PayrollSummaryDTO summary(@RequestParam int year) {
-
-        return new PayrollSummaryDTO(
-                employeeRepo.count(),
-                payrollRepo.yearlyPayroll(year),
-                payrollRepo.yearlyDeductions(year),
-                payrollRepo.yearlyAllowances(year),
-                leaveBalanceRepo.countByCurrentBalanceDaysGreaterThan(0)
-        );
-
+        // Use the Builder to satisfy the updated DTO structure
+        // while maintaining the existing yearly analytics logic.
+        return PayrollSummaryDTO.builder()
+                .totalEmployees(employeeRepo.count())
+                .totalNet(payrollRepo.yearlyPayroll(year)) // yearlyPayroll returns SUM(netSalary)
+                .totalDeductions(payrollRepo.yearlyDeductions(year))
+                .totalAllowances(payrollRepo.yearlyAllowances(year))
+                .pendingLeaves(leaveBalanceRepo.countByCurrentBalanceDaysGreaterThan(0))
+                // Optional: Initialize UI fields to default values for this specific endpoint
+                .totalGross(0.0)
+                .totalTax(0.0)
+                .totalSSF(0.0)
+                .totalOvertime(0.0)
+                .paidCount(0L)
+                .departments(java.util.List.of())
+                .build();
     }
 
     // 2️⃣ Monthly payroll chart
