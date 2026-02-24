@@ -1,4 +1,4 @@
-package np.edu.nast.payroll.Payroll.dto.auth;
+package np.edu.nast.payroll.Payroll.dto;
 import java.util.List;
 
 public class SalarySummaryDTO {

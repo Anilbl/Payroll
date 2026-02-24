@@ -1,7 +1,7 @@
 package np.edu.nast.payroll.Payroll.controller;
 
-import np.edu.nast.payroll.Payroll.dto.auth.SalarySummaryDTO;
-import np.edu.nast.payroll.Payroll.dto.auth.CommandCenterDTO;
+import np.edu.nast.payroll.Payroll.dto.SalarySummaryDTO;
+import np.edu.nast.payroll.Payroll.dto.CommandCenterDTO;
 import np.edu.nast.payroll.Payroll.entity.SalaryComponent;
 import np.edu.nast.payroll.Payroll.entity.Department;
 import np.edu.nast.payroll.Payroll.service.SalaryComponentService;

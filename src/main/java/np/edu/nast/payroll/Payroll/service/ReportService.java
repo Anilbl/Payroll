@@ -1,6 +1,6 @@
 package np.edu.nast.payroll.Payroll.service;
 
-import np.edu.nast.payroll.Payroll.dto.auth.SalaryReportDTO;
+import np.edu.nast.payroll.Payroll.dto.SalaryReportDTO;
 import np.edu.nast.payroll.Payroll.entity.Report;
 
 import java.util.List;

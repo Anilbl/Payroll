@@ -1,5 +1,6 @@
 package np.edu.nast.payroll.Payroll.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import np.edu.nast.payroll.Payroll.security.CustomUserDetailsService;
 import np.edu.nast.payroll.Payroll.security.JwtFilter;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -34,9 +36,12 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
 
     @Bean
+    static GrantedAuthorityDefaults grantedAuthorityDefaults() {
+        return new GrantedAuthorityDefaults("");
+    }
+
+    @Bean
     public PasswordEncoder passwordEncoder() {
-        // Warning: NoOpPasswordEncoder is only for development.
-        // Use BCryptPasswordEncoder for production.
         return NoOpPasswordEncoder.getInstance();
     }
 
@@ -45,6 +50,7 @@ public class SecurityConfig {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
+        provider.setHideUserNotFoundExceptions(false);
         return provider;
     }
 
@@ -61,44 +67,50 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        /* 1. PUBLIC & ESEWA CALLBACKS */
-                        .requestMatchers("/api/auth/**", "/error").permitAll()
+                        /* 1. PUBLIC PERMISSIONS (Always First) */
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/esewa/success/**", "/api/esewa/failure/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/leave-types/**", "/api/leave-balance/**").permitAll()
 
-                        /* 2. DASHBOARD & PROFILE */
+                        /* 2. SYSTEM CONFIGURATION (Strict Admin/Accountant) */
+                        // Added this as a high priority rule
+                        .requestMatchers("/api/system-config/**")
+                        .hasAnyAuthority("ADMIN", "ACCOUNTANT", "ROLE_ADMIN", "ROLE_ACCOUNTANT")
+
+                        /* 3. TAX SLABS ACCESS */
+                        .requestMatchers(HttpMethod.GET, "/api/tax-slabs/**")
+                        .hasAnyAuthority("ADMIN", "ACCOUNTANT", "EMPLOYEE", "ROLE_ADMIN", "ROLE_ACCOUNTANT", "ROLE_EMPLOYEE")
+                        .requestMatchers("/api/tax-slabs/**")
+                        .hasAnyAuthority("ADMIN", "ACCOUNTANT", "ROLE_ADMIN", "ROLE_ACCOUNTANT")
+
+                        /* 4. ATTENDANCE & LEAVES (Specific methods first) */
+                        .requestMatchers(HttpMethod.POST, "/api/attendance/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN", "EMPLOYEE", "ROLE_EMPLOYEE")
+                        .requestMatchers("/api/attendance/**", "/api/employee-leaves/**", "/api/salary-analytics/**")
+                        .hasAnyAuthority("ADMIN", "ROLE_ADMIN", "ACCOUNTANT", "ROLE_ACCOUNTANT", "EMPLOYEE", "ROLE_EMPLOYEE")
+
+                        /* 5. PAYROLL & FINANCIALS */
+                        .requestMatchers("/api/payrolls/**", "/api/esewa/initiate/**", "/api/holidays/**", "/api/reports/**")
+                        .hasAnyAuthority("ADMIN", "ACCOUNTANT", "ROLE_ADMIN", "ROLE_ACCOUNTANT")
+
+                        /* 6. DASHBOARD */
                         .requestMatchers("/api/employee/dashboard/**")
-                        .hasAnyAuthority("ROLE_USER", "ROLE_EMPLOYEE", "ROLE_ADMIN", "ADMIN", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
+                        .hasAnyAuthority("ADMIN", "ACCOUNTANT", "EMPLOYEE", "ROLE_ADMIN", "ROLE_ACCOUNTANT", "ROLE_EMPLOYEE")
 
-                        /* 3. COMMON LOOKUPS */
-                        .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/payment-methods/**").authenticated()
+                        /* 7. COMMON LOOKUPS */
+                        .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/employees/**", "/api/users/**", "/api/payment-methods/**").authenticated()
 
-                        /* 4. PAYROLL & PAYMENT (Accountant Specific Access) */
-                        // Allow Accountant to access payroll logic, batch calculations, and payment initiation
-                        .requestMatchers("/api/payrolls/batch-calculate", "/api/payrolls/preview")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers("/api/payrolls/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers("/api/esewa/initiate/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-
-                        /* 5. ATTENDANCE & LEAVE */
-                        .requestMatchers("/api/attendance/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers("/api/employee-leaves/**", "/api/salary-analytics/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_EMPLOYEE", "EMPLOYEE", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-
-                        /* 6. GLOBAL WRITE PROTECTION RULES */
-                        // POST/PUT/DELETE logic updated to include Accountant where business logic requires it
-                        .requestMatchers(HttpMethod.POST, "/api/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers(HttpMethod.PUT, "/api/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_ACCOUNTANT", "ACCOUNTANT")
-                        .requestMatchers(HttpMethod.DELETE, "/api/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ADMIN") // Keep Delete restricted to Admin for safety
-
-                        /* 7. FALLBACK */
+                        /* 8. GLOBAL FALLBACKS */
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN", "ACCOUNTANT", "ROLE_ACCOUNTANT")
+                        .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN", "ACCOUNTANT", "ROLE_ACCOUNTANT")
                         .anyRequest().authenticated()
                 )
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                    // Enhanced Debugging
+                    System.err.println("SECURITY REJECTION: URI=" + request.getRequestURI() + " | Method=" + request.getMethod() + " | Reason=" + authException.getMessage());
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: Token invalid or missing.");
+                }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -107,11 +119,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Updated to allow your common frontend ports
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000", "http://10.0.2.2:8080"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

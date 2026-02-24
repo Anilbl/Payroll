@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -132,6 +133,27 @@ public class Payroll {
     @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<PayrollAudit> auditLogs;
+
+    // 1. Add this field to your existing fields
+    @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<PayrollExtraComponent> extraComponents = new ArrayList<>();
+
+    @OneToMany(mappedBy = "payroll", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PayoutInfo> payouts = new ArrayList<>();
+    // 2. Add this helper method inside the class body
+    public void addExtraComponent(String name, Double amount, String type, String calcType, String desc) {
+        if (this.extraComponents == null) this.extraComponents = new ArrayList<>();
+        PayrollExtraComponent component = PayrollExtraComponent.builder()
+                .payroll(this)
+                .componentName(name)
+                .amount(amount)
+                .type(type)
+                .calculationType(calcType)
+                .description(desc)
+                .build();
+        this.extraComponents.add(component);
+    }
 
     @PrePersist
     protected void onCreate() {

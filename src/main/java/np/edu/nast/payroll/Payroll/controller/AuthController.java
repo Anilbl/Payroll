@@ -1,7 +1,7 @@
 package np.edu.nast.payroll.Payroll.controller;
 
-import np.edu.nast.payroll.Payroll.dto.auth.LoginRequestDTO;
-import np.edu.nast.payroll.Payroll.dto.auth.LoginResponseDTO;
+import np.edu.nast.payroll.Payroll.dto.LoginRequestDTO;
+import np.edu.nast.payroll.Payroll.dto.LoginResponseDTO;
 import np.edu.nast.payroll.Payroll.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

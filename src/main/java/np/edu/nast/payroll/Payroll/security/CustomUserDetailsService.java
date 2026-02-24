@@ -18,27 +18,22 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username)
-            throws UsernameNotFoundException {
-
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
-        String role = user.getRole().getRoleName().toUpperCase();
-        if (!role.startsWith("ROLE_")) {
-            role = "ROLE_" + role;
+        // Ensure role is uppercase for consistency
+        String roleName = user.getRole().getRoleName().toUpperCase();
+
+        // If your database has "ADMIN", this creates "ROLE_ADMIN"
+        if (!roleName.startsWith("ROLE_")) {
+            roleName = "ROLE_" + roleName;
         }
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority(role))
+                Collections.singletonList(new SimpleGrantedAuthority(roleName))
         );
-    }
-
-
-    public Integer getId() {
-        return 0;
     }
 }

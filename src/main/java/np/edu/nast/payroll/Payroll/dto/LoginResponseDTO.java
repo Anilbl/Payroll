@@ -1,4 +1,4 @@
-package np.edu.nast.payroll.Payroll.dto.auth;
+package np.edu.nast.payroll.Payroll.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

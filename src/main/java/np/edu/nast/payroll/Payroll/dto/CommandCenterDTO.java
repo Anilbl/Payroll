@@ -1,6 +1,8 @@
-package np.edu.nast.payroll.Payroll.dto.auth;
+package np.edu.nast.payroll.Payroll.dto;
 
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class CommandCenterDTO {
@@ -8,4 +10,5 @@ public class CommandCenterDTO {
     private String payrollStatus; // e.g., "Processing"
     private int compliancePercentage; // e.g., 100
     private int pendingVerifications; // e.g., 12
+    private List<EmployeePayrollRowDTO> employeeRows;
 }

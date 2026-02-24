@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Table(
         name = "system_config",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = "key_name")
+                @UniqueConstraint(name = "uk_system_config_key", columnNames = "key_name")
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -18,21 +18,24 @@ public class SystemConfig {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "config_id")
     private Integer configId;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "key_name", nullable = false, unique = true, length = 100)
     private String keyName;
 
-    @Column(nullable = false)
+    @Column(name = "value", nullable = false, columnDefinition = "TEXT")
     private String value;
 
+    @Column(name = "description", length = 255)
     private String description;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "updated_by", nullable = false)
+    @JsonIgnoreProperties({"password", "roles", "employee"}) // Prevent leaking sensitive info
     private User updatedBy;
 
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -41,4 +44,3 @@ public class SystemConfig {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

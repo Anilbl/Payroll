@@ -1,6 +1,7 @@
 package np.edu.nast.payroll.Payroll.service;
 
-import np.edu.nast.payroll.Payroll.dto.auth.PayrollDashboardDTO;
+import np.edu.nast.payroll.Payroll.dto.CommandCenterDTO;
+import np.edu.nast.payroll.Payroll.dto.PayrollDashboardDTO;
 import np.edu.nast.payroll.Payroll.entity.Payroll;
 import np.edu.nast.payroll.Payroll.reportdto.PayrollSummaryDTO;
 
@@ -19,4 +20,5 @@ public interface PayrollService {
     Payroll getPayrollById(Integer id);
     List<PayrollDashboardDTO> getBatchCalculation(String month, int year);
     PayrollSummaryDTO getSalarySummary(int month, int year);
+    CommandCenterDTO getCommandCenterData(int month, int year);
 }

@@ -2,8 +2,8 @@ package np.edu.nast.payroll.Payroll.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import np.edu.nast.payroll.Payroll.config.EsewaConfig;
-import np.edu.nast.payroll.Payroll.entity.BankAccount;
 import np.edu.nast.payroll.Payroll.entity.PayoutInfo;
 import np.edu.nast.payroll.Payroll.entity.Payroll;
 import np.edu.nast.payroll.Payroll.repository.PayoutInfoRepository;
@@ -26,6 +26,7 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/esewa")
 @CrossOrigin(origins = "http://localhost:5173")
+@Slf4j
 public class EsewaController {
 
     @Autowired
@@ -43,7 +44,7 @@ public class EsewaController {
         try {
             if (id == null || id.equalsIgnoreCase("undefined")) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("message", "Invalid Payroll ID: Received 'undefined'."));
+                        .body(Map.of("message", "Invalid Payroll ID."));
             }
 
             Integer payrollId = Integer.parseInt(id);
@@ -53,12 +54,23 @@ public class EsewaController {
                 return ResponseEntity.badRequest().body(Map.of("message", "This payroll is already PAID."));
             }
 
+            // Detect Role to embed in the UUID
+            String roleTag = "ADMIN";
+            if (payroll.getProcessedBy() != null &&
+                    payroll.getProcessedBy().getRole().getRoleName().toUpperCase().contains("ACCOUNTANT")) {
+                roleTag = "ACCOUNTANT";
+            }
+
             String totalAmount = String.format("%.2f", payroll.getNetSalary());
-            String transactionUuid = "NAST-PAY-" + payrollId + "-" + System.currentTimeMillis();
+
+            // New UUID Format: NAST-PAY-[ID]-[ROLE]-[TIMESTAMP]
+            // This ensures the role is "remembered" even if the payment fails or is cancelled
+            String transactionUuid = "NAST-PAY-" + payrollId + "-" + roleTag + "-" + System.currentTimeMillis();
+
             String productCode = EsewaConfig.PRODUCT_CODE;
             String signature = generateSignature(totalAmount, transactionUuid, productCode);
 
-            Map<String, String> responseData = Map.of(
+            return ResponseEntity.ok(Map.of(
                     "amount", totalAmount,
                     "tax_amount", "0",
                     "total_amount", totalAmount,
@@ -66,13 +78,11 @@ public class EsewaController {
                     "product_code", productCode,
                     "signature", signature,
                     "esewa_url", EsewaConfig.ESEWA_GATEWAY_URL
-            );
-
-            return ResponseEntity.ok(responseData);
+            ));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "Payment Initiation Failed: " + e.getMessage()));
+                    .body(Map.of("message", "Initiation Failed: " + e.getMessage()));
         }
     }
 
@@ -87,17 +97,17 @@ public class EsewaController {
             String transactionUuid = response.get("transaction_uuid").asText();
             String esewaRefId = response.has("transaction_code") ? response.get("transaction_code").asText() : "N/A";
 
-            Integer payrollId = Integer.parseInt(transactionUuid.split("-")[2]);
+            // Split based on our new format: parts[2] is ID, parts[3] is Role
+            String[] parts = transactionUuid.split("-");
+            Integer payrollId = Integer.parseInt(parts[2]);
+            String roleTag = parts[3];
 
             if ("COMPLETE".equalsIgnoreCase(status)) {
                 payrollService.finalizePayroll(payrollId, esewaRefId);
                 Payroll payroll = payrollService.getPayrollById(payrollId);
 
-                // DYNAMIC REDIRECT BASED ON ROLE
-                String roleName = payroll.getProcessedBy().getRole().getRoleName().toUpperCase();
-                String dashboardPath = roleName.contains("ACCOUNTANT") ? "accountant" : "admin";
+                String dashboardPath = roleTag.equalsIgnoreCase("ACCOUNTANT") ? "accountant/payroll-processing" : "admin/payroll";
 
-                // Payout Logging
                 PayoutInfo payout = PayoutInfo.builder()
                         .payroll(payroll)
                         .employee(payroll.getEmployee())
@@ -115,37 +125,53 @@ public class EsewaController {
                 try {
                     emailService.generateAndSendPayslip(payroll, esewaRefId);
                 } catch (Exception e) {
-                    System.err.println("Email Notification Failed: " + e.getMessage());
+                    log.error("Email Error: {}", e.getMessage());
                 }
 
-                return "redirect:http://localhost:5173/" + dashboardPath + "/payroll?status=success";
+                return "redirect:http://localhost:5173/" + dashboardPath + "?status=success";
             }
             return "redirect:http://localhost:5173/login?status=error";
         } catch (Exception e) {
+            log.error("Success Handler Error: {}", e.getMessage());
             return "redirect:http://localhost:5173/login?status=critical_error";
         }
     }
 
     @GetMapping("/failure")
     @Transactional
-    public String handleFailure(@RequestParam("data") String base64Data) {
-        String dashboardPath = "admin";
+    public String handleFailure(@RequestParam(value = "data", required = false) String base64Data) {
+        // Default to accountant if data is missing, as per your current requirement
+        String dashboardPath = "accountant/payroll-processing";
+
+        // If data is null, user manually clicked "Back" or "Cancel" on eSewa
+        if (base64Data == null || base64Data.isEmpty()) {
+            log.info("Manual cancellation detected. Redirecting to {}", dashboardPath);
+            return "redirect:http://localhost:5173/" + dashboardPath + "?status=cancelled";
+        }
+
         try {
             String decodedString = new String(Base64.getDecoder().decode(base64Data));
             JsonNode response = new ObjectMapper().readTree(decodedString);
-            String transactionUuid = response.get("transaction_uuid").asText();
-            Integer payrollId = Integer.parseInt(transactionUuid.split("-")[2]);
 
-            Payroll payroll = payrollService.getPayrollById(payrollId);
-            if (payroll != null) {
-                String roleName = payroll.getProcessedBy().getRole().getRoleName().toUpperCase();
-                dashboardPath = roleName.contains("ACCOUNTANT") ? "accountant" : "admin";
+            String transactionUuid = response.get("transaction_uuid").asText();
+            String[] parts = transactionUuid.split("-");
+
+            if (parts.length >= 4) {
+                Integer payrollId = Integer.parseInt(parts[2]);
+                String roleTag = parts[3];
+
+                dashboardPath = roleTag.equalsIgnoreCase("ACCOUNTANT") ? "accountant/payroll-processing" : "admin/payroll";
+
+                log.info("Rolling back for Payroll ID: {} for Role: {}", payrollId, roleTag);
+                payoutInfoRepository.deleteByPayroll_PayrollId(payrollId);
+                payoutInfoRepository.flush();
                 payrollService.rollbackPayroll(payrollId);
             }
         } catch (Exception e) {
-            System.err.println("Rollback Failed: " + e.getMessage());
+            log.error("Failure Handler Error: {}", e.getMessage());
         }
-        return "redirect:http://localhost:5173/" + dashboardPath + "/payroll?status=failed";
+
+        return "redirect:http://localhost:5173/" + dashboardPath + "?status=failed";
     }
 
     private String generateSignature(String totalAmount, String uuid, String productCode) {

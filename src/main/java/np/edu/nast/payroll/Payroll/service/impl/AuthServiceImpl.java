@@ -1,7 +1,7 @@
 package np.edu.nast.payroll.Payroll.service.impl;
 
-import np.edu.nast.payroll.Payroll.dto.auth.LoginRequestDTO;
-import np.edu.nast.payroll.Payroll.dto.auth.LoginResponseDTO;
+import np.edu.nast.payroll.Payroll.dto.LoginRequestDTO;
+import np.edu.nast.payroll.Payroll.dto.LoginResponseDTO;
 import np.edu.nast.payroll.Payroll.entity.User;
 import np.edu.nast.payroll.Payroll.entity.Employee; // Import Employee
 import np.edu.nast.payroll.Payroll.repository.UserRepository;

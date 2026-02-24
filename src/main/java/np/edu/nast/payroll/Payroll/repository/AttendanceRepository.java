@@ -12,23 +12,23 @@ import java.util.Optional;
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Integer> {
 
+    // Counts present days: Includes Start Date, Excludes End Date
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.employee.empId = :empId " +
+            "AND a.status = 'PRESENT' " +
+            "AND a.attendanceDate >= :start AND a.attendanceDate < :end")
+    long countPresentDays(@Param("empId") Integer empId,
+                          @Param("start") LocalDate start,
+                          @Param("end") LocalDate end);
+
     List<Attendance> findByEmployee_EmpIdAndAttendanceDateBetween(Integer empId, LocalDate start, LocalDate end);
-
     List<Attendance> findByEmployee_EmpIdAndAttendanceDateGreaterThanEqualAndAttendanceDateLessThan(Integer empId, LocalDate start, LocalDate end);
-
     long countByAttendanceDate(LocalDate date);
-
     List<Attendance> findAllByAttendanceDate(LocalDate date);
-
     List<Attendance> findByEmployee_EmpId(Integer empId);
-
     Optional<Attendance> findTopByEmployee_EmpIdOrderByAttendanceIdDesc(Integer empId);
-
     long countByEmployeeEmpIdAndAttendanceDateBetween(Integer empId, LocalDate start, LocalDate end);
-
     long countByEmployee_EmpIdAndStatusAndAttendanceDateBetween(Integer empId, String status, LocalDate start, LocalDate end);
 
-    // --- UPDATED: Dynamic Filtering for Dashboard ---
     @Query("""
         SELECT a FROM Attendance a 
         WHERE YEAR(a.attendanceDate) = :year 
