@@ -19,13 +19,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // This looks up the user in the database based on what was typed in the login box
+        // ADD THIS LOG TO YOUR CONSOLE
+        System.out.println("Spring Security is looking for: " + username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
-        // Ensure role is uppercase for consistency
+        // Format the role for Spring Security (e.g., ADMIN -> ROLE_ADMIN)
         String roleName = user.getRole().getRoleName().toUpperCase();
-
-        // If your database has "ADMIN", this creates "ROLE_ADMIN"
         if (!roleName.startsWith("ROLE_")) {
             roleName = "ROLE_" + roleName;
         }

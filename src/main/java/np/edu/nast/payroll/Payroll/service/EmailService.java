@@ -24,16 +24,32 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    // Fixes the error in UserServiceImpl
-    public void sendOtpEmail(String to, String otp) {
+    /**
+     * NEW: Sends a plain text email.
+     * Used by UserServiceImpl to send default credentials (username/password)
+     */
+    public void sendSimpleEmail(String to, String subject, String content) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
-        message.setSubject("Password Reset OTP - NAST Payroll");
-        message.setText("Your verification code is: " + otp);
+        message.setSubject(subject);
+        message.setText(content);
         mailSender.send(message);
     }
 
-    // Fixes the error in PayrollController & EsewaController
+    /**
+     * Sends OTP for Password Reset OR Account Setup Confirmation.
+     */
+    public void sendOtpEmail(String to, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Verification Code - NAST Payroll");
+        message.setText("Your verification code is: " + otp +
+                "\n\nThis code will expire in 15 minutes.");
+        mailSender.send(message);
+    }
+
+    // --- PRESERVED PAYROLL FEATURES ---
+
     public void generateAndSendPayslip(Payroll payroll, String esewaTxnId) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -43,7 +59,7 @@ public class EmailService {
 
             // Header Section
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Paragraph title = new Paragraph("Payroll of your Organization - SALARY SLIP", titleFont);
+            Paragraph title = new Paragraph("Payroll Organization - SALARY SLIP", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(new Paragraph(" "));
@@ -57,7 +73,7 @@ public class EmailService {
             PdfPTable table = new PdfPTable(2);
             table.setWidthPercentage(100);
 
-            // EARNINGS (Using your Entity fields)
+            // EARNINGS
             addTableRow(table, "Basic Salary", payroll.getBasicSalary());
             addTableRow(table, "Total Allowances", payroll.getTotalAllowances());
             addTableRow(table, "Festival Bonus", payroll.getFestivalBonus());
@@ -65,7 +81,7 @@ public class EmailService {
             addTotalRow(table, "TOTAL GROSS SALARY", payroll.getGrossSalary());
             addTotalRow(table, "Overtime Pay", payroll.getOvertimePay());
 
-            // DEDUCTIONS (Using your Entity fields)
+            // DEDUCTIONS
             addTableRow(table, "SSF Contribution (11%)", -payroll.getSsfContribution());
             addTableRow(table, "CIT Contribution", -payroll.getCitContribution());
             addTableRow(table, "Income Tax (Monthly TDS)", -payroll.getTotalTax());
@@ -89,7 +105,7 @@ public class EmailService {
         helper.setSubject("Salary Disbursement Confirmation - " + payroll.getPayDate());
         helper.setText("Dear " + payroll.getEmployee().getFirstName() + ",\n\n" +
                 "Your salary for " + payroll.getPayDate() + " has been successfully disbursed. " +
-                "Please find the attached PDF payslip for your records.");
+                "Please find attached PDF payslip.");
 
         helper.addAttachment("Payslip_" + payroll.getPayDate() + ".pdf", new ByteArrayResource(pdfBytes));
         mailSender.send(message);

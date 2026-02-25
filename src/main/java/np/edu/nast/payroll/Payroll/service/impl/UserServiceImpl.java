@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.security.SecureRandom;
 import java.util.List;
 
 @Service
@@ -22,74 +24,176 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
+    // =========================================================
+    // CREATE USER
+    // =========================================================
     @Override
     public User create(User user) {
-        // Validation for new user creation
-        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("Password cannot be null or empty for new user creation");
-        }
 
         if (userRepository.findByEmailIgnoreCase(user.getEmail()).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with the" + user.getEmail() + "email already exists.");
+            throw new EmailAlreadyExistsException(
+                    "A user with the " + user.getEmail() + " email already exists."
+            );
         }
 
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
+        String tempPassword = generateRandomString(10);
+
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setFirstLogin(true);
+        user.setStatus("ACTIVE");
+
+        /* NOTE: We removed the manual boolean setting logic here.
+           The User Entity's @PrePersist method will automatically set
+           isAdmin, isAccountant, and hasEmployeeRole based on user.getRole()
+           when userRepository.save() is executed.
+        */
+
+        User savedUser = userRepository.save(user);
+
+        emailService.sendSimpleEmail(
+                savedUser.getEmail(),
+                "Account Created - NAST Payroll",
+                "Your account has been created.\n\n" +
+                        "Default Username: " + savedUser.getUsername() +
+                        "\nDefault Password: " + tempPassword +
+                        "\n\nPlease login to setup your permanent account."
+        );
+
+        return savedUser;
     }
 
     @Override
-    public User update(Integer id, User userDetails) {
-        User existingUser = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+    public void finalizeAccountSetup(String email,
+                                     String newUsername,
+                                     String newPassword,
+                                     String token) {
 
-        existingUser.setUsername(userDetails.getUsername());
-        existingUser.setEmail(userDetails.getEmail());
-        existingUser.setStatus(userDetails.getStatus());
+        User user = userRepository.findByEmailIgnoreCase(email.trim())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found with email: " + email)
+                );
 
-        if (userDetails.getRole() != null) {
-            existingUser.setRole(userDetails.getRole());
+        if (user.getResetToken() == null || !user.getResetToken().equals(token)) {
+            throw new IllegalArgumentException("Invalid verification code.");
         }
 
-        // Only update password if a new one is provided
-        if (userDetails.getPassword() != null && !userDetails.getPassword().trim().isEmpty()) {
-            existingUser.setPassword(passwordEncoder.encode(userDetails.getPassword()));
+        if (user.getTokenExpiry() != null &&
+                user.getTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Verification code has expired.");
         }
 
-        return userRepository.save(existingUser);
-    }
+        user.setUsername(newUsername.trim());
+        user.setPassword(passwordEncoder.encode(newPassword));
 
-    @Override
-    public List<User> getAll() { return userRepository.findAll(); }
+        user.setFirstLogin(false);
+        user.setResetToken(null);
+        user.setTokenExpiry(null);
 
-    @Override
-    public User getById(Integer id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-    }
-
-    @Override
-    public void delete(Integer id) {
-        if(!userRepository.existsById(id)) throw new ResourceNotFoundException("User not found");
-        userRepository.deleteById(id);
+        userRepository.save(user);
     }
 
     @Override
     public void initiatePasswordReset(String email) {
+
         User user = userRepository.findByEmailIgnoreCase(email.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Email not found"));
-        String otp = String.valueOf((int)(Math.random() * 900000 + 100000));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Email not found")
+                );
+
+        String otp = String.format("%06d", new SecureRandom().nextInt(999999));
+
         user.setResetToken(otp);
+        user.setTokenExpiry(LocalDateTime.now().plusMinutes(15));
+
         userRepository.save(user);
+
         emailService.sendOtpEmail(user.getEmail(), otp);
     }
 
     @Override
     public void resetPassword(String token, String newPassword) {
+
         User user = userRepository.findByResetToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired OTP"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Invalid or expired token")
+                );
+
+        if (user.getTokenExpiry() != null &&
+                user.getTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Reset token has expired.");
+        }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetToken(null);
+        user.setTokenExpiry(null);
+
         userRepository.save(user);
+    }
+
+    // =========================================================
+    // UPDATE USER
+    // =========================================================
+    @Override
+    public User update(Integer id, User userDetails) {
+
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+
+        existingUser.setUsername(userDetails.getUsername());
+        existingUser.setEmail(userDetails.getEmail());
+        existingUser.setStatus(userDetails.getStatus());
+
+        // Update the primary role
+        if (userDetails.getRole() != null) {
+            existingUser.setRole(userDetails.getRole());
+            /* The Entity's @PreUpdate will automatically re-sync
+               the boolean flags (isAdmin, etc.) based on this new role.
+            */
+        }
+
+        if (userDetails.getPassword() != null &&
+                !userDetails.getPassword().trim().isEmpty()) {
+            existingUser.setPassword(
+                    passwordEncoder.encode(userDetails.getPassword())
+            );
+        }
+
+        return userRepository.save(existingUser);
+    }
+
+    // =========================================================
+    // ROLE SWITCH VALIDATION
+    // =========================================================
+    @Override
+    public boolean canSwitchRole(User user, String roleName) {
+        if (user == null || roleName == null) return false;
+
+        return switch (roleName.toUpperCase()) {
+            case "ADMIN" -> user.isAdmin();
+            case "ACCOUNTANT" -> user.isAccountant();
+            case "EMPLOYEE" -> user.isHasEmployeeRole();
+            default -> false;
+        };
+    }
+
+    @Override
+    public List<User> getAll() {
+        return userRepository.findAll();
+    }
+
+    @Override
+    public User getById(Integer id) {
+        return userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+    }
+
+    @Override
+    public void delete(Integer id) {
+        userRepository.deleteById(id);
     }
 
     @Override
@@ -97,9 +201,29 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByEmailIgnoreCase(email).orElse(null);
     }
 
-    @Override
-    public void sendOtpToAllUsers() {}
+    private String generateRandomString(int length) {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom rnd = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(rnd.nextInt(chars.length())));
+        }
+
+        return sb.toString();
+    }
 
     @Override
-    public User setupDefaultAccount(Integer empId) { return new User(); }
+    public void sendOtpToAllUsers() {
+        List<User> users = userRepository.findAll();
+        for (User user : users) {
+            String otp = String.format("%06d", new SecureRandom().nextInt(999999));
+            emailService.sendOtpEmail(user.getEmail(), otp);
+        }
+    }
+
+    @Override
+    public User setupDefaultAccount(Integer empId) {
+        return new User();
+    }
 }

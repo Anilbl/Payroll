@@ -72,6 +72,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/esewa/success/**", "/api/esewa/failure/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/leave-types/**", "/api/leave-balance/**").permitAll()
+                        .requestMatchers("/api/users/forgot-password").permitAll()
+                        .requestMatchers("/api/users/reset-password").permitAll() // You'll likely need this next
 
                         /* 2. SYSTEM CONFIGURATION (Strict Admin/Accountant) */
                         // Added this as a high priority rule

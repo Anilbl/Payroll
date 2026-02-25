@@ -22,10 +22,9 @@ public class User {
     @Column(name = "user_id")
     private Integer userId;
 
-    @Column(name = "username",nullable = false, unique = true)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    // FIX: Change @JsonIgnore to this so the backend can "read" the password from the JSON request
     @Column(name = "password", nullable = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
@@ -33,6 +32,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    // Primary Role (Sent from Frontend)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     @JsonIgnoreProperties("users")
@@ -40,10 +40,13 @@ public class User {
 
     private String status;
 
-    // Mapping preserved to prevent 500 error
     @OneToOne(mappedBy = "user")
     @JsonIgnore
-    private Employee employee; // Fixed double semicolon
+    private Employee employee;
+
+    @Column(name = "is_first_login")
+    @Builder.Default
+    private boolean isFirstLogin = true;
 
     @Column(name = "reset_token")
     @JsonIgnore
@@ -52,11 +55,54 @@ public class User {
     @Column(name = "token_expiry")
     @JsonIgnore
     private LocalDateTime tokenExpiry;
+
+    // 🔥 AUTOMATED MULTI-ROLE FLAGS
+    @Column(name = "is_admin")
+    private boolean isAdmin =false;
+
+    @Column(name = "is_accountant")
+    private boolean isAccountant = false;
+
+    @Column(name = "has_employee_role")
+    private boolean hasEmployeeRole = true;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    /**
+     * Logic to automatically set boolean flags based on the selected Role.
+     * Triggers before Saving (Persist) and before Updating.
+     */
     @PrePersist
-    public void onCreate() {
-        this.createdAt = LocalDateTime.now();
+    @PreUpdate
+    public void syncRoleFlagsAndTimestamp() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+
+        if (this.role != null && this.role.getRoleName() != null) {
+            String roleName = this.role.getRoleName().toUpperCase();
+
+            switch (roleName) {
+                case "ADMIN":
+                    this.isAdmin = true;
+                    this.isAccountant = true;
+                    this.hasEmployeeRole = true;
+                    break;
+
+                case "ACCOUNTANT":
+                    this.isAdmin = false;
+                    this.isAccountant = true;
+                    this.hasEmployeeRole = true;
+                    break;
+
+                case "EMPLOYEE":
+                default:
+                    this.isAdmin = false;
+                    this.isAccountant = false;
+                    this.hasEmployeeRole = true;
+                    break;
+            }
+        }
     }
 }
