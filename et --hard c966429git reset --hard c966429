@@ -1,0 +1,51 @@
+[33m8f477b4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31mbackend-new/main[m[33m)[m HEAD@{0}: commit: setup is almost done
+[33m5851445[m HEAD@{1}: commit: payroll is done
+[33m973d284[m HEAD@{2}: commit: payroll and reports and done
+[33m8ca5263[m HEAD@{3}: commit: backend is also done
+[33mb2071c5[m HEAD@{4}: commit: backend changes are made for payroll
+[33m0f2388c[m HEAD@{5}: commit: shdd
+[33me8e22c5[m HEAD@{6}: Branch: renamed refs/heads/main to refs/heads/main
+[33me8e22c5[m HEAD@{8}: commit: nothing is done
+[33ma74da14[m HEAD@{9}: commit: payroll is completed
+[33m6cdd5d1[m HEAD@{10}: pull origin main: Fast-forward
+[33mc966429[m HEAD@{11}: commit: too much changes are made for seamless flow
+[33m6761cce[m HEAD@{12}: commit: working seamlessly
+[33m3ede1e1[m HEAD@{13}: commit: everything is working well
+[33mda837b6[m HEAD@{14}: pull origin main: Fast-forward
+[33m6509975[m HEAD@{15}: commit: changes
+[33mae35a20[m HEAD@{16}: reset: moving to HEAD
+[33mae35a20[m HEAD@{17}: reset: moving to HEAD
+[33mae35a20[m HEAD@{18}: pull origin main: Fast-forward
+[33mda077d1[m HEAD@{19}: reset: moving to HEAD
+[33mda077d1[m HEAD@{20}: reset: moving to da077d1
+[33mda077d1[m HEAD@{21}: reset: moving to HEAD@{1}
+[33mf82acce[m HEAD@{22}: pull origin main: Fast-forward
+[33mda077d1[m HEAD@{23}: commit: change
+[33meccd848[m HEAD@{24}: reset: moving to origin/main
+[33m446b386[m HEAD@{25}: commit: something is changed
+[33m0161fa7[m HEAD@{26}: commit: change made
+[33m8a60e47[m HEAD@{27}: pull origin main: Fast-forward
+[33m0f094a6[m HEAD@{28}: commit: payroll is modified
+[33ma57dbaa[m HEAD@{29}: commit (merge): updated backend as per frontend and do not try to change the security config so that i can handle other errors except in this page
+[33mfe5c19b[m HEAD@{30}: reset: moving to HEAD
+[33mfe5c19b[m HEAD@{31}: commit: authentication is done based on jwt token
+[33m0a69b23[m HEAD@{32}: pull origin main: Fast-forward
+[33m86caac3[m HEAD@{33}: commit: leave request for employee is done
+[33mb9183a3[m HEAD@{34}: pull: Fast-forward
+[33m8216c07[m HEAD@{35}: commit (merge): system config works now
+[33m7f9d93b[m HEAD@{36}: reset: moving to HEAD
+[33m7f9d93b[m HEAD@{37}: checkout: moving from feature/payroll-updates to main
+[33mdacf643[m[33m ([m[1;31morigin/feature/payroll-updates[m[33m, [m[1;32mfeature/payroll-updates[m[33m)[m HEAD@{38}: reset: moving to HEAD
+[33mdacf643[m[33m ([m[1;31morigin/feature/payroll-updates[m[33m, [m[1;32mfeature/payroll-updates[m[33m)[m HEAD@{39}: checkout: moving from main to feature/payroll-updates
+[33m7f9d93b[m HEAD@{40}: commit: that much for today
+[33mba42601[m HEAD@{41}: commit: some features are updated
+[33m384be01[m HEAD@{42}: pull origin main: Fast-forward
+[33mb8fcf23[m HEAD@{43}: checkout: moving from feature/payroll-updates to main
+[33mdacf643[m[33m ([m[1;31morigin/feature/payroll-updates[m[33m, [m[1;32mfeature/payroll-updates[m[33m)[m HEAD@{44}: commit: payroll updates
+[33mb8fcf23[m HEAD@{45}: checkout: moving from main to feature/payroll-updates
+[33mb8fcf23[m HEAD@{46}: commit: soft changes for employee table
+[33me9e4a7f[m HEAD@{47}: commit: some changes are made related to the database logic
+[33m477fec9[m HEAD@{48}: commit: authentication is done
+[33m480dab7[m HEAD@{49}: merge origin/main: Merge made by the 'ort' strategy.
+[33m197f9fd[m HEAD@{50}: commit: a lot of changes are made
+[33mef49ff3[m HEAD@{51}: commit (initial): Initial commit

@@ -17,41 +17,31 @@ public class SalaryAnalyticsService {
     @Autowired private BankAccountRepository bankAccountRepo;
 
     public SalaryAnalyticsResponseDTO getSalaryDetailsByUsername(String loginName, String monthStr) {
-        // 1. Find Employee by the actual login username (NOT email)
-        // This must match the 'username' field in your User entity
+        // 1. Find Employee by username
         Employee emp = employeeRepo.findByUser_Username(loginName)
                 .orElseThrow(() -> new RuntimeException("Employee profile not found for user: " + loginName));
 
-        // 2. Parse "2026-01"
+        // 2. Parse "YYYY-MM" from frontend (e.g., "2026-01")
         String[] parts = monthStr.split("-");
         int year = Integer.parseInt(parts[0]);
         int month = Integer.parseInt(parts[1]);
 
-        // 3. Find the Payroll (The Join)
+        // 3. Find the Payroll record
         Payroll payroll = payrollRepo.findByEmployeeEmpIdAndMonth(emp.getEmpId(), year, month)
                 .orElseThrow(() -> new RuntimeException("No payroll record found for " + monthStr));
 
-        // 4. Find the Bank Details (The Join)
+        // 4. Find the Primary Bank Details
         BankAccount bankDetails = bankAccountRepo.findByEmployeeEmpIdAndIsPrimaryTrue(emp.getEmpId())
                 .orElse(null);
 
-
-
-        // 5. Perform Exact Calculations
-        Double base = emp.getBasicSalary();             // 55000.0
-        Double gross = payroll.getGrossSalary();        // 55000.0
-        Double allowances = payroll.getTotalAllowances(); // 5000.0
-        Double deductions = payroll.getTotalDeductions(); // 6050.0
-        Double taxDeducted = payroll.getTotalTax();      // 2500.0
-
-        // The calculation that results in 51,450
-        Double netSalary = (gross + allowances) - (deductions + taxDeducted);
-        // 6. Map to DTO (Matches image_36451f.jpg)
+        // 5. Map to DTO
         return mapToDTO(emp, payroll, bankDetails);
     }
 
     private SalaryAnalyticsResponseDTO mapToDTO(Employee emp, Payroll payroll, BankAccount bank) {
         SalaryAnalyticsResponseDTO dto = new SalaryAnalyticsResponseDTO();
+
+        // Employee/Bank Info
         dto.setEmployeeName(emp.getFirstName() + " " + emp.getLastName());
         dto.setDesignation(emp.getPosition() != null ? emp.getPosition().getDesignationTitle() : "N/A");
         dto.setEmploymentStatus(emp.getEmploymentStatus());
@@ -64,12 +54,18 @@ public class SalaryAnalyticsService {
             dto.setBankAccount("N/A");
         }
 
+        // Financial Breakdown (Ensuring frontend gets the exact numbers it needs)
         dto.setBaseSalary(emp.getBasicSalary());
         dto.setGrossSalary(payroll.getGrossSalary());
         dto.setTotalAllowances(payroll.getTotalAllowances());
         dto.setTotalDeductions(payroll.getTotalDeductions());
+
+        // Frontend uses 'taxableAmount' to display the "Tax (TDS)" deduction
         dto.setTaxableAmount(payroll.getTotalTax());
+
+        // Net Salary as calculated by the system
         dto.setNetSalary(payroll.getNetSalary());
+
         return dto;
     }
 }

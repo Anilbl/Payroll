@@ -1,6 +1,5 @@
 package np.edu.nast.payroll.Payroll.salaryDTO;
 
-
 import lombok.*;
 
 @Getter
@@ -8,20 +7,20 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SalaryAnalyticsResponseDTO {
-            // Employee datils
-            String  employeeName;
-            String designation;
-            String employmentStatus;
-            // Bank Details
-            String bankName;
-            String bankAccount;
-            // salary BreakDown
-            Double baseSalary;
-            Double grossSalary;
-            Double totalAllowances;
-            Double totalDeductions;
-            Double taxableAmount;
-            Double netSalary;
+    // Employee details
+    private String employeeName;
+    private String designation;
+    private String employmentStatus;
 
+    // Bank Details
+    private String bankName;
+    private String bankAccount;
 
+    // Salary Breakdown
+    private Double baseSalary;
+    private Double grossSalary;
+    private Double totalAllowances;
+    private Double totalDeductions;
+    private Double taxableAmount; // Mapped to TDS in frontend
+    private Double netSalary;
 }

@@ -7,6 +7,10 @@ import np.edu.nast.payroll.Payroll.service.EmployeeService;
 import np.edu.nast.payroll.Payroll.exception.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -37,6 +41,65 @@ public class EmployeeServiceImpl implements EmployeeService {
         this.bankRepo = bankRepo;
         this.bankAccountRepo = bankAccountRepo;
     }
+
+    // --- NEW SETTINGS FEATURES IMPLEMENTATION ---
+
+    @Override
+    public String updateProfilePhoto(Integer empId, MultipartFile file) {
+        Employee emp = employeeRepo.findById(empId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        try {
+            // Define physical folder on server disk
+            String uploadDir = "uploads/photos/";
+            File dir = new File(uploadDir);
+            if (!dir.exists()) dir.mkdirs();
+
+            // Generate unique filename to avoid browser caching issues
+            String fileName = "emp_" + empId + "_" + System.currentTimeMillis() + ".jpg";
+            Path path = Paths.get(uploadDir + fileName);
+
+            // Save file
+            Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+
+            // URL that the frontend uses (Matches SecurityConfig and WebConfig)
+            String photoUrl = "http://localhost:8080/photos/" + fileName;
+            emp.setPhotoUrl(photoUrl);
+            employeeRepo.save(emp);
+
+            return photoUrl;
+        } catch (IOException e) {
+            throw new RuntimeException("Could not store file: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void updateEmailPreference(Integer empId, Boolean preference) {
+        Employee emp = employeeRepo.findById(empId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        emp.setEmailNotifications(preference);
+        employeeRepo.save(emp);
+    }
+
+    @Override
+    public void updatePassword(Integer empId, String currentPassword, String newPassword) {
+        Employee emp = employeeRepo.findById(empId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        User user = emp.getUser();
+        if (user == null) throw new ResourceNotFoundException("No associated user account found");
+
+        // Simple check for NoOpPasswordEncoder logic.
+        // If you switch to BCrypt later, use passwordEncoder.matches()
+        if (!user.getPassword().equals(currentPassword)) {
+            throw new RuntimeException("The current password you entered is incorrect.");
+        }
+
+        user.setPassword(newPassword);
+        userRepo.save(user);
+    }
+
+    // --- EXISTING LOGIC PRESERVED BELOW ---
 
     @Override
     public Employee getByUserId(Integer userId) {
@@ -91,16 +154,13 @@ public class EmployeeServiceImpl implements EmployeeService {
         employee.setUser(associatedUser);
         validateAndAttachForeignKeys(employee);
 
-        // Capture bank list and detach to save Employee first
         List<BankAccount> incomingBankAccounts = employee.getBankAccount();
         employee.setBankAccount(null);
 
         Employee savedEmployee = employeeRepo.save(employee);
 
-        // Fixed Logic: Explicitly map fields to avoid "no default value" errors
         if (incomingBankAccounts != null && !incomingBankAccounts.isEmpty()) {
             BankAccount bankDetails = incomingBankAccounts.get(0);
-
             if (bankDetails.getBank() != null && bankDetails.getAccountNumber() != null) {
                 Bank bank = bankRepo.findById(bankDetails.getBank().getBankId())
                         .orElseThrow(() -> new ResourceNotFoundException("Bank not found"));
@@ -117,7 +177,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                 savedEmployee.setBankAccount(Collections.singletonList(newAcc));
             }
         }
-
         return savedEmployee;
     }
 
@@ -135,7 +194,6 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         validateAndAttachForeignKeys(employee);
 
-        // Update basic fields
         existing.setFirstName(employee.getFirstName());
         existing.setLastName(employee.getLastName());
         existing.setContact(employee.getContact());
@@ -152,10 +210,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         if (existing.getUser() != null) existing.getUser().setEmail(existing.getEmail());
 
-        // Fixed Logic: Update existing primary account or create a new one properly mapped
         if (employee.getBankAccount() != null && !employee.getBankAccount().isEmpty()) {
             BankAccount incomingBa = employee.getBankAccount().get(0);
-
             BankAccount existingBa = bankAccountRepo.findByEmployeeEmpId(id).stream()
                     .filter(BankAccount::getIsPrimary)
                     .findFirst()
@@ -164,18 +220,15 @@ public class EmployeeServiceImpl implements EmployeeService {
             if (incomingBa.getBank() != null && incomingBa.getAccountNumber() != null) {
                 Bank bank = bankRepo.findById(incomingBa.getBank().getBankId())
                         .orElseThrow(() -> new ResourceNotFoundException("Bank not found"));
-
                 existingBa.setEmployee(existing);
                 existingBa.setBank(bank);
                 existingBa.setAccountNumber(incomingBa.getAccountNumber());
                 existingBa.setAccountType(incomingBa.getAccountType());
                 existingBa.setCurrency(incomingBa.getCurrency());
                 existingBa.setIsPrimary(true);
-
                 bankAccountRepo.save(existingBa);
             }
         }
-
         return employeeRepo.save(existing);
     }
 

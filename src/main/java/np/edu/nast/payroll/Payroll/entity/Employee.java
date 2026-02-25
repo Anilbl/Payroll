@@ -94,6 +94,10 @@ public class Employee {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "email_notifications")
+    private Boolean emailNotifications = false;
+    @Column(name = "photo_url")
+    private String photoUrl;
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();

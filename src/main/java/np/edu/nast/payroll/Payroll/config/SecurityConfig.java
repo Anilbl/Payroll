@@ -42,9 +42,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();
+        // This replaces NoOpPasswordEncoder and enables secure BCrypt hashing
+        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
     }
-
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -68,6 +68,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
                         /* 1. PUBLIC PERMISSIONS (Always First) */
+                        .requestMatchers("/photos/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/esewa/success/**", "/api/esewa/failure/**").permitAll()
@@ -101,7 +102,9 @@ public class SecurityConfig {
 
                         /* 7. COMMON LOOKUPS */
                         .requestMatchers(HttpMethod.GET, "/api/departments/**", "/api/designations/**", "/api/employees/**", "/api/users/**", "/api/payment-methods/**").authenticated()
-
+                        .requestMatchers(HttpMethod.PUT, "/api/employees/change-password/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/employees/email-preference/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/employees/*/upload-photo").authenticated()
                         /* 8. GLOBAL FALLBACKS */
                         .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN", "ACCOUNTANT", "ROLE_ACCOUNTANT")

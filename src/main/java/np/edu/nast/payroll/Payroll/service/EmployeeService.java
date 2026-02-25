@@ -1,6 +1,8 @@
 package np.edu.nast.payroll.Payroll.service;
 
 import np.edu.nast.payroll.Payroll.entity.Employee;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +16,9 @@ public interface EmployeeService {
 
     // NEW FEATURE: Concept change to User ID
     Employee getByUserId(Integer userId);
-
+    String updateProfilePhoto(Integer empId, MultipartFile file);
+    void updateEmailPreference(Integer empId, Boolean preference);
+    void updatePassword(Integer empId, String currentPassword, String newPassword);
     List<Employee> getAll();
     Map<Integer, Long> getActiveEmployeeStats();
     Map<String, Object> getDashboardStats(Integer id);
